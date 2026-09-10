@@ -67,7 +67,7 @@ public class EnforcementHearingConfirmationService {
     }
 
     private boolean isEnforcement(final ProsecutionCaseDetails details) {
-        return enforcementAuthorityCode.equals(details.prosecutionAuthorityCode());
+        return enforcementAuthorityCode.equals(details.prosecutionAuthorityOUCode());
     }
 
     private static ConfirmedHearing toConfirmedHearing(final ProsecutionCaseDetails details,

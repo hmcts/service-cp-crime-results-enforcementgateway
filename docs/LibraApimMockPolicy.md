@@ -1,6 +1,6 @@
 # Azure APIM mock policy — simulating the Libra `confirmedHearing` response
 
-Test-only mock for the Libra/APIM integration (`LibraClient`/`cp.libra.base-url`), used while the
+Test-only mock for the Libra/APIM integration (`LibraClient`/`cp.libra.apim-base-url`), used while the
 real Libra/APIM policy doesn't exist yet. **Test environment only — do not apply to a prod APIM
 instance.** Mirrors the same idea as `cpp-context-staging-dvla`'s own mock policy
 (`stagingdvla-azure-functions/.../DVLA Driver Enquiry/MockFindAPIMPolicy.txt`), which stands in for
@@ -17,10 +17,12 @@ pass-through API (its operations are auto-generated from the WSDL's `<portType>`
 `searchType`/`createFineAccounts` — see `GobClient` in `cpp-context-staging-enforcement`). It's the
 wrong container for a hand-written JSON REST operation.
 
-Instead: create a **separate, new API** in the test APIM instance (type: HTTP, blank or import
-`api-cp-crime-results-enforcementgateway`'s draft OpenAPI spec), add a `POST /confirmedHearing`
-operation to it, and paste the policy below into that operation's **inbound** processing (Azure
-Portal → APIs → your new API → the `POST /confirmedHearing` operation → Design tab → the `</>`
+**Update, resolved**: this is done — the operation was added as `libra-confirmedhearing`
+(`POST /confirmedHearing`) under the existing shared `cppi-v4` APIM API (base
+`https://spnl-apim-int-gw.cpp.nonlive/cppi/v4` in STE, one host per environment - see
+`cp.libra.apim-base-url`'s comment in `application.yaml`), not as a standalone new API as originally
+suggested below. Paste the policy variant below into that operation's **inbound** processing
+(Azure Portal → APIs → `cppi-v4` → the `libra-confirmedhearing` operation → Design tab → the `</>`
 code-editor icon on the Inbound processing box).
 
 ## Which variant to use
@@ -51,22 +53,28 @@ Controlled by an optional request header, `X-Mock-Response-Code`:
               - "200"             -> 200 OK
               - any 4xx value (e.g. "400", "422")  -> that status, with a plausible error body
             Remove this whole policy once the real APIM->Libra integration exists.
+
+            Gotcha (this is what Azure APIM rejects the policy for): any attribute whose
+            expression embeds a C# double-quoted string literal - e.g.
+            GetValueOrDefault("X-Mock-Response-Code", "202") - must use single quotes as the XML
+            attribute delimiter (condition='@(...)'), not double quotes. A "-delimited attribute
+            cannot itself contain a literal " - that's invalid XML, not an @()/@{} syntax error,
+            even though APIM's validator reports it as one.
         -->
         <choose>
-            <when condition="@(context.Request.Headers.GetValueOrDefault("X-Mock-Response-Code", "202") == "202")">
+            <when condition='@(context.Request.Headers.GetValueOrDefault("X-Mock-Response-Code", "202") == "202")'>
                 <return-response>
                     <set-status code="202" reason="Accepted" />
                 </return-response>
             </when>
-            <when condition="@(context.Request.Headers.GetValueOrDefault("X-Mock-Response-Code", "202") == "200")">
+            <when condition='@(context.Request.Headers.GetValueOrDefault("X-Mock-Response-Code", "202") == "200")'>
                 <return-response>
                     <set-status code="200" reason="OK" />
                 </return-response>
             </when>
             <otherwise>
                 <return-response>
-                    <set-status code="@(int.Parse(context.Request.Headers.GetValueOrDefault("X-Mock-Response-Code", "400")))"
-                                reason="Simulated error" />
+                    <set-status code='@(int.Parse(context.Request.Headers.GetValueOrDefault("X-Mock-Response-Code", "400")))' reason="Simulated error" />
                     <set-header name="Content-Type" exists-action="override">
                         <value>application/json</value>
                     </set-header>
@@ -131,14 +139,12 @@ test hearing to through the UI — no header, no manual policy edit between scen
 - `courtHearingLocation` == `TEST422` → simulated 422
 - (add more `<when>` blocks the same way for other codes as needed)
 
-**Open question, needs confirming with QA/whoever owns test-data setup before relying on this**:
-does the enforcement-hearing-allocation UI actually let QA freely pick which court centre a test
-hearing is allocated to, from a list that could include a couple of reserved "trigger" OU codes
-(`TEST400`/`TEST422`)? If not — e.g. if the court centre is assigned automatically rather than
-chosen — branching on `caseUrn` instead might work, but case references usually follow a strict
-validated format, so an artificial "magic" URN suffix might get rejected before the case (and this
-whole flow) is even created. Whichever field turns out to be freely QA-controllable, the same
-`<choose>`/`<when>` shape below applies - just swap which JSON property is read.
+**Confirmed (2026-09-08): QA can freely select the court hearing location through the UI** — so
+`courtHearingLocation` is the right field to branch on, and this is the recommended variant going
+forward. In practice, treat the `TEST400`/`TEST422` mapping as adjustable during testing - update
+the `<when>` values in the policy (Azure Portal → APIM → `cppi-v4` → `libra-confirmedhearing` →
+Inbound processing) to whichever OU codes QA is actually using in a given test pass, rather than
+assuming these two literal codes are permanently reserved.
 
 ```xml
 <policies>
@@ -152,11 +158,19 @@ whole flow) is even created. Whichever field turns out to be freely QA-controlla
             QA test-data note, not just this comment - it'll drift if it's not written down
             somewhere QA can see. Remove this whole policy once the real APIM->Libra integration
             exists.
+
+            Gotcha (this is what Azure APIM rejects the policy for): As<JObject> contains a
+            literal "<"/">", and XML attribute values can never contain an unescaped "<" -
+            written as &lt;JObject&gt; below. Likewise, any attribute whose expression embeds a
+            C# double-quoted string literal (context.Variables["requestBody"], == "TEST400",
+            etc.) uses single quotes as the XML attribute delimiter instead of double quotes -
+            same reasoning as the Variant A note above. APIM reports both of these as a generic
+            "@()/@{} format" error, but the real problem is the XML itself, not the C# expression.
         -->
-        <set-variable name="requestBody" value="@(context.Request.Body.As<JObject>(preserveContent: true))" />
-        <set-variable name="ouCode" value="@(((JObject)context.Variables["requestBody"])["courtHearingLocation"]?.ToString() ?? "")" />
+        <set-variable name="requestBody" value="@(context.Request.Body.As&lt;JObject&gt;(preserveContent: true))" />
+        <set-variable name="ouCode" value='@(((JObject)context.Variables["requestBody"])["courtHearingLocation"]?.ToString() ?? "")' />
         <choose>
-            <when condition="@(((string)context.Variables["ouCode"]) == "TEST400")">
+            <when condition='@(((string)context.Variables["ouCode"]) == "TEST400")'>
                 <return-response>
                     <set-status code="400" reason="Simulated error" />
                     <set-header name="Content-Type" exists-action="override">
@@ -165,7 +179,7 @@ whole flow) is even created. Whichever field turns out to be freely QA-controlla
                     <set-body>{"error": "Simulated 400 - courtHearingLocation matched test trigger TEST400"}</set-body>
                 </return-response>
             </when>
-            <when condition="@(((string)context.Variables["ouCode"]) == "TEST422")">
+            <when condition='@(((string)context.Variables["ouCode"]) == "TEST422")'>
                 <return-response>
                     <set-status code="422" reason="Simulated error" />
                     <set-header name="Content-Type" exists-action="override">
@@ -208,5 +222,5 @@ scenario and a failure scenario in parallel this way).
 
 - Remove this whole policy (or delete the temporary API/operation) once the real Libra/APIM
   integration exists, so it doesn't get mistaken for real behaviour later.
-- Point `cp.libra.base-url` (in `service-cp-crime-results-enforcementgateway`'s config) at this
+- Point `cp.libra.apim-base-url` (in `service-cp-crime-results-enforcementgateway`'s config) at this
   test APIM API's URL to exercise `LibraClient` end-to-end against it.

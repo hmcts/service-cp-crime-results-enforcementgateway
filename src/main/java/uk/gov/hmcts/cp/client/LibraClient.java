@@ -29,7 +29,7 @@ public class LibraClient {
     private final String apimSubscriptionKey;
 
     public LibraClient(@Qualifier("libraRestClientBuilder") final RestClient.Builder restClientBuilder,
-                        @Value("${cp.libra.base-url}") final String baseUrl,
+                        @Value("${cp.libra.apim-base-url}") final String baseUrl,
                         @Value("${cp.libra.apim-subscription-key}") final String apimSubscriptionKey) {
         this.restClient = restClientBuilder.baseUrl(baseUrl).build();
         this.apimSubscriptionKey = apimSubscriptionKey;
