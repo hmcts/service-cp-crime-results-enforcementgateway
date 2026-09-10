@@ -24,6 +24,7 @@ public class ProsecutionCaseClient {
 
     private static final MediaType PROGRESSION_QUERY_CASE_MEDIA_TYPE =
             MediaType.parseMediaType("application/vnd.progression.query.case+json");
+    private static final String CJSCPPUID_HEADER = "CJSCPPUID";
 
     private final RestClient restClient;
     private final String cjscppuid;
@@ -44,7 +45,7 @@ public class ProsecutionCaseClient {
             final ProsecutionCaseResponse response = restClient.get()
                     .uri("/prosecutioncases/{caseId}", caseId)
                     .accept(PROGRESSION_QUERY_CASE_MEDIA_TYPE)
-                    .header("CJSCPPUID", cjscppuid)
+                    .header(CJSCPPUID_HEADER, cjscppuid)
                     .retrieve()
                     .body(ProsecutionCaseResponse.class);
             return Optional.ofNullable(response)

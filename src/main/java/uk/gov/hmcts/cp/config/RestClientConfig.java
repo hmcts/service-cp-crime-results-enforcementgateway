@@ -25,7 +25,7 @@ public class RestClientConfig {
     @Bean
     @Scope("prototype")
     public RestClient.Builder restClientBuilder(
-            @Value("${cp.http-client.connect-timeout-ms:5000}") final long connectTimeoutMs,
+            @Value("${cp.http-client.connect-timeout-ms:10000}") final long connectTimeoutMs,
             @Value("${cp.http-client.read-timeout-ms:10000}") final long readTimeoutMs) {
         final HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(connectTimeoutMs))

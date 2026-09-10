@@ -56,20 +56,62 @@ cp:
   progression:
     query-api:
       # TBC: replace with the real Progression query-api base URL for the target environment.
+      # Checked (2026-09-08) whether the two other new cp-crime-* siblings (service-cp-crime-
+      # results-pcr, service-cp-crime-results-nows) already have a real value to borrow - no:
+      # both use the same kind of placeholder (their shared CP_BACKEND_URL env var, fronting
+      # both results-query-api and referencedata-query-api under one base host), defaulting to
+      # http://localhost:8081, with no environment-specific value committed in either repo or
+      # findable anywhere in cpp-aks-deploy. Confirms this is genuinely unset across the whole
+      # family, not something already answered elsewhere.
       base-url: ${PROGRESSION_QUERY_API_URL:http://localhost:8080/progression-query-api/query/api/rest/progression}
       # Same CJSCPPUID + Accept-vendor-header convention service-cp-crime-results-pcr already uses
       # calling the sibling results-query-api/referencedata-query-api - no bearer token/API key
-      # involved. Placeholder system-user UUID until a real value is confirmed.
+      # involved. Placeholder system-user UUID until a real value is confirmed - checked
+      # (2026-09-08): both service-cp-crime-results-pcr and service-cp-crime-results-nows use
+      # this identical all-zeros placeholder too, with no real value set anywhere - confirms this
+      # is the right config shape, just still waiting on a real value from whoever owns it.
       cjscppuid: ${CJSCPPUID:00000000-0000-0000-0000-000000000000}
   libra:
     # This service never calls Libra directly - it POSTs to Azure APIM, which forwards the
-    # same confirmedHearing payload on to Libra. TBC: draft/unconfirmed - the real APIM
-    # endpoint for this integration isn't decided yet (CIMD-3701).
-    base-url: ${LIBRA_BASE_URL:http://localhost:9999}
+    # same confirmedHearing payload on to Libra. Named "apim-base-url", not just "base-url"
+    # (2026-09-10, per your steer) - the target is APIM, not Libra itself, so the name should
+    # say so, matching apim-subscription-key below and cpp-context-staging-dvla's own
+    # dvlaEnquiryApimUrl precedent. The "libra-confirmedhearing" operation (POST /confirmedHearing)
+    # was added under the existing shared "cppi-v4" APIM API, not a dedicated new API - so this
+    # must include the "/cppi/v4" path segment.
+    # Not JNDI - that's the older JSF/WildFly stack's mechanism, this is a plain Spring Boot
+    # service: the real value is injected as this container's LIBRA_APIM_BASE_URL env var, one
+    # value per environment, at deploy time. Confirmed values for THIS integration specifically
+    # (dev and sit deliberately share sit's APIM instance - not the spnl-{env}- per-environment
+    # pattern most sibling integrations use):
+    #   dev, sit:    https://spnl-sit-apim-int-gw.cpp.nonlive/cppi/v4
+    #   ste:         https://spnl-apim-int-gw.cpp.nonlive/cppi/v4
+    #   prd/prp/prx: not shared yet - confirm with the platform team before go-live
+    # WHICH deploy repo actually wires this env var is still unconfirmed - this service has no
+    # onboarding yet in cpp-aks-deploy (the older Justice-Services-Framework deploy repo), and
+    # the two closest cp-crime-* siblings don't agree on a repo either (service-cp-crime-results-pcr
+    # targets a different repo, cp-vp-aks-deploy, and isn't onboarded there yet; service-cp-crime-
+    # results-nows has no deploy CI job at all). Confirm the correct target repo with the platform
+    # team before adding any deploy config here. Localhost below is a local-dev-only fallback,
+    # never a real environment's value.
+    apim-base-url: ${LIBRA_APIM_BASE_URL:http://localhost:9999}
     # Same Ocp-Apim-Subscription-Key convention cpp-context-staging-dvla uses calling its own
-    # APIM-fronted integration - APIM itself authenticates onward to Libra (OAuth2, confirmed
-    # by the architect), so this is the only credential this service needs to send. Placeholder
-    # until the real subscription key is confirmed.
+    # APIM-fronted integration - CONFIRMED (2026-09-08, by you): the cppi-v4 policy does the
+    # OAuth2 handshake with Libra internally, so this subscription key is the only credential
+    # this service needs to send - no longer just a working assumption.
+    # Placeholder until the real subscription key is confirmed. Checked whether
+    # cpp-context-staging-dvla's own existing key could be reused - no: DVLA's key
+    # (config "mireportdata.caseFilter.subscription.key", Vault secret
+    # casefilter_apim_subscription_key per environment, e.g. cpp-aks-deploy's
+    # ansible/group_vars/sit/common.yaml.j2) is scoped to a different APIM Product tied to
+    # case-filter/MI-report functionality, not cppi-v4 - Azure APIM subscription keys are
+    # scoped per Product, so a key for one Product won't authorise calls to a different one.
+    # Also: cppi-v4 is normally an INBOUND-facing API (external prosecuting authorities calling
+    # into CP to submit cases/materials, e.g. cpp-context-staging-prosecutors-civil's own
+    # "civilcases" OpenAPI-import definition shares several of the same paths), so this gateway
+    # is a new kind of consumer - there's no existing internal caller's key to reuse either way.
+    # A dedicated new subscription key for cppi-v4 needs issuing by whoever administers that
+    # APIM instance.
     apim-subscription-key: ${LIBRA_APIM_SUBSCRIPTION_KEY:}
   enforcement:
     # Confirmed by BA 2026-08-28: the Enforcement prosecuting-authority OUCODE, shared by both
@@ -77,8 +119,9 @@ cp:
     # submissions use the same prosecuting authority).
     authority-code: ${ENFORCEMENT_AUTHORITY_CODE:GAPGD00}
   http-client:
-    # Applies to the Progression call only - placeholder values, no real SLA confirmed yet.
-    # Prevents a hung call from stalling the JMS listener thread indefinitely. The Libra/APIM
-    # call deliberately has no custom timeout - see cp.libra above.
-    connect-timeout-ms: ${HTTP_CLIENT_CONNECT_TIMEOUT_MS:5000}
+    # Applies to the Progression call only - the Libra/APIM call deliberately has no custom
+    # timeout, see cp.libra above. Prevents a hung call from stalling the JMS listener thread
+    # indefinitely. No formal SLA agreed with Progression yet - per your steer (2026-09-08),
+    # using 10s for both connect and read as the working value for now.
+    connect-timeout-ms: ${HTTP_CLIENT_CONNECT_TIMEOUT_MS:10000}
     read-timeout-ms: ${HTTP_CLIENT_READ_TIMEOUT_MS:10000}
