@@ -11,7 +11,7 @@ class RestClientConfigTest {
 
     @Test
     void restClientBuilderCreatesPrototypeScopedBuilderWithConfiguredTimeouts() {
-        final RestClient.Builder builder = config.restClientBuilder(5000, 10000);
+        final RestClient.Builder builder = config.restClientBuilder(10000, 10000);
 
         assertThat(builder).isNotNull();
     }

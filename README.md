@@ -23,11 +23,16 @@ It is **event-driven**: it subscribes to CP listing public events (`public.listi
 
 API contract: [`api-cp-crime-results-enforcementgateway`](https://github.com/hmcts/api-cp-crime-results-enforcementgateway).
 
-> ⚠️ **Scaffold.** Created from the HMCTS template
-> [`service-hmcts-crime-springboot-template`](https://github.com/hmcts/service-hmcts-crime-springboot-template).
-> The domain implementation (event listener, enforcement filter, Libra client) is not yet built — a
-> platform spike to confirm Boot durable subscription to the CP Artemis `public.event` topic is a
-> prerequisite.
+Created from the HMCTS template
+[`service-hmcts-crime-springboot-template`](https://github.com/hmcts/service-hmcts-crime-springboot-template).
+The domain implementation is built: `HearingAllocationEventListener` consumes
+`hearing-confirmed`/`hearing-updated`, `EnforcementHearingConfirmationService` enriches each case via
+`ProsecutionCaseClient` (Progression's query-api) and filters to Enforcement-typed cases, and
+`LibraClient` POSTs the mapped `confirmedHearing` payload to Libra via Azure APIM
+(`cp.libra.apim-base-url`/`cp.libra.apim-subscription-key`, see `application.yaml`). Several
+environment-specific values (Libra/APIM base URL and subscription key for prod, Progression's
+query-api base URL, `CJSCPPUID`, and which deploy repo this service onboards into) are still
+outstanding - see `libra-hearing-confirmation-plan.md` for the up-to-date list.
 
 ## Tech stack
 
