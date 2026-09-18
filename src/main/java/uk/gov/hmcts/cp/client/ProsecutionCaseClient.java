@@ -24,6 +24,7 @@ public class ProsecutionCaseClient {
 
     private static final MediaType PROGRESSION_QUERY_CASE_MEDIA_TYPE =
             MediaType.parseMediaType("application/vnd.progression.query.case+json");
+    private static final String CJSCPPUID_HEADER = "CJSCPPUID";
 
     private final RestClient restClient;
     private final String cjscppuid;
@@ -44,24 +45,32 @@ public class ProsecutionCaseClient {
             final ProsecutionCaseResponse response = restClient.get()
                     .uri("/prosecutioncases/{caseId}", caseId)
                     .accept(PROGRESSION_QUERY_CASE_MEDIA_TYPE)
-                    .header("CJSCPPUID", cjscppuid)
+                    .header(CJSCPPUID_HEADER, cjscppuid)
                     .retrieve()
                     .body(ProsecutionCaseResponse.class);
             return Optional.ofNullable(response)
-                    .map(ProsecutionCaseResponse::prosecutionCaseIdentifier)
-                    .map(identifier -> new ProsecutionCaseDetails(identifier.prosecutionAuthorityCode(), identifier.caseUrn()));
+                    .map(ProsecutionCaseResponse::prosecutionCase)
+                    .map(ProsecutionCase::prosecutionCaseIdentifier)
+                    .map(identifier -> new ProsecutionCaseDetails(identifier.prosecutionAuthorityOUCode(), identifier.caseUrn()));
         } catch (final RestClientException e) {
             log.error("Failed to look up prosecution case {} from Progression", caseId, e);
             return Optional.empty();
         }
     }
 
+    // Progression's progression.query.case response wraps the case under a "prosecutionCase" key
+    // (see ProsecutionCaseQuery.getCase / PROSECUTION_CASE constant in cpp-context-progression) -
+    // the identifier itself is nested one level further inside that.
     @JsonIgnoreProperties(ignoreUnknown = true)
-    private record ProsecutionCaseResponse(ProsecutionCaseIdentifier prosecutionCaseIdentifier) {
+    private record ProsecutionCaseResponse(ProsecutionCase prosecutionCase) {
+    }
 
-        @JsonIgnoreProperties(ignoreUnknown = true)
-        private record ProsecutionCaseIdentifier(String prosecutionAuthorityCode,
-                                                  @JsonProperty("caseURN") String caseUrn) {
-        }
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record ProsecutionCase(ProsecutionCaseIdentifier prosecutionCaseIdentifier) {
+    }
+
+    @JsonIgnoreProperties(ignoreUnknown = true)
+    private record ProsecutionCaseIdentifier(String prosecutionAuthorityOUCode,
+                                              @JsonProperty("caseURN") String caseUrn) {
     }
 }

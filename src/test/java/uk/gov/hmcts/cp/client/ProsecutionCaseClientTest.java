@@ -31,12 +31,15 @@ class ProsecutionCaseClientTest {
                 .andExpect(method(GET))
                 .andExpect(header("CJSCPPUID", CJSCPPUID))
                 .andRespond(withSuccess(
-                        "{\"prosecutionCaseIdentifier\":{\"prosecutionAuthorityCode\":\"ENFRC\",\"prosecutionAuthorityId\":\"x\",\"caseURN\":\"12GD3456789\"}}",
+                        // Matches Progression's real progression.query.case response shape - the
+                        // case is wrapped under "prosecutionCase" (see ProsecutionCaseQuery.getCase
+                        // in cpp-context-progression), not a flat top-level prosecutionCaseIdentifier.
+                        "{\"prosecutionCase\":{\"prosecutionCaseIdentifier\":{\"prosecutionAuthorityOUCode\":\"GAPGD00\",\"prosecutionAuthorityId\":\"x\",\"caseURN\":\"12GD3456789\"}}}",
                         MediaType.APPLICATION_JSON));
 
         final Optional<ProsecutionCaseDetails> result = new ProsecutionCaseClient(builder, BASE_URL, CJSCPPUID).findByCaseId(caseId);
 
-        assertThat(result).contains(new ProsecutionCaseDetails("ENFRC", "12GD3456789"));
+        assertThat(result).contains(new ProsecutionCaseDetails("GAPGD00", "12GD3456789"));
         server.verify();
     }
 
