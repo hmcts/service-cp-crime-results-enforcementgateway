@@ -60,7 +60,8 @@ public class EnforcementHearingConfirmationService {
                         .filter(this::isEnforcement)
                         .ifPresent(details -> libraClient.confirmHearing(
                                 toConfirmedHearing(details, courtHearingLocation, sittingDay.get())));
-            } catch (final RuntimeException e) {
+                // deliberately broad: a lookup/POST failure for one case must not stop the others in the same event
+            } catch (@SuppressWarnings("PMD.AvoidCatchingGenericException") final RuntimeException e) {
                 log.error("Failed to process confirmedHearing callback for case {}", prosecutionCase.id(), e);
             }
         }

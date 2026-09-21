@@ -37,6 +37,7 @@ public class LibraClient {
 
     /** Returns true if APIM accepted the callback (200/202) for onward delivery to Libra, false otherwise - never throws. */
     public boolean confirmHearing(final ConfirmedHearing confirmedHearing) {
+        boolean accepted = false;
         try {
             restClient.post()
                     .uri("/confirmedHearing")
@@ -45,10 +46,10 @@ public class LibraClient {
                     .body(confirmedHearing)
                     .retrieve()
                     .toBodilessEntity();
-            return true;
+            accepted = true;
         } catch (final RestClientException e) {
             log.error("Libra confirmedHearing callback (via APIM) failed for caseUrn {}", confirmedHearing.caseUrn(), e);
-            return false;
         }
+        return accepted;
     }
 }

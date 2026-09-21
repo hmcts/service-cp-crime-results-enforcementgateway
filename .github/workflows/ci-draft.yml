@@ -5,13 +5,23 @@ on:
     branches:
       - master
       - main
+      - 'team/**'
   push:
     branches:
       - master
       - main
+      - 'team/**'
+
+permissions:
+  contents: read
 
 jobs:
   ci-draft:
+    # The called workflow's jobs are capped by these; Build-Docker pushes to ghcr.io
+    # with GITHUB_TOKEN so packages: write is required here.
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/ci-build-publish.yml
     secrets:
       AZURE_DEVOPS_ARTIFACT_USERNAME: ${{ secrets.AZURE_DEVOPS_ARTIFACT_USERNAME }}
