@@ -27,6 +27,7 @@ public class RestClientConfig {
     public RestClient.Builder restClientBuilder(
             @Value("${cp.http-client.connect-timeout-ms:10000}") final long connectTimeoutMs,
             @Value("${cp.http-client.read-timeout-ms:10000}") final long readTimeoutMs) {
+        @SuppressWarnings("PMD.CloseResource") // wrapped into requestFactory below and kept open for the bean's lifetime, not closed here
         final HttpClient httpClient = HttpClient.newBuilder()
                 .connectTimeout(Duration.ofMillis(connectTimeoutMs))
                 .build();

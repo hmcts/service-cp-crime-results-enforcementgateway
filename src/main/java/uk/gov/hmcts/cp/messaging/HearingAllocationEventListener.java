@@ -55,23 +55,25 @@ public class HearingAllocationEventListener {
         final String eventName = message.getStringProperty("CPPNAME");
         try {
             final JsonNode root = objectMapper.readTree(message.getBody(String.class));
-            final JsonNode hearingNode;
             if (root.has(CONFIRMED_HEARING_KEY)) {
-                hearingNode = root.get(CONFIRMED_HEARING_KEY);
+                processHearingNode(root.get(CONFIRMED_HEARING_KEY));
             } else if (root.has(UPDATED_HEARING_KEY)) {
-                if (!root.path(ALLOCATION_FIELD_UPDATED_KEY).asBoolean(true)) {
+                if (root.path(ALLOCATION_FIELD_UPDATED_KEY).asBoolean(true)) {
+                    processHearingNode(root.get(UPDATED_HEARING_KEY));
+                } else {
                     log.debug("Skipping {} event - allocation fields unchanged (jmsMessageId={})", eventName, message.getJMSMessageID());
-                    return;
                 }
-                hearingNode = root.get(UPDATED_HEARING_KEY);
             } else {
                 log.warn("{} event had neither '{}' nor '{}' key (jmsMessageId={})", eventName, CONFIRMED_HEARING_KEY, UPDATED_HEARING_KEY, message.getJMSMessageID());
-                return;
             }
-            final ConfirmedHearingEvent event = objectMapper.treeToValue(hearingNode, ConfirmedHearingEvent.class);
-            confirmationService.processConfirmedHearing(event);
-        } catch (final RuntimeException e) {
+            // deliberately broad: any failure processing one message must not kill this listener thread or block the JMS session
+        } catch (@SuppressWarnings("PMD.AvoidCatchingGenericException") final RuntimeException e) {
             log.error("Failed to process {} event (jmsMessageId={})", eventName, message.getJMSMessageID(), e);
         }
+    }
+
+    private void processHearingNode(final JsonNode hearingNode) {
+        final ConfirmedHearingEvent event = objectMapper.treeToValue(hearingNode, ConfirmedHearingEvent.class);
+        confirmationService.processConfirmedHearing(event);
     }
 }

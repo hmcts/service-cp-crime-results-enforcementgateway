@@ -41,6 +41,7 @@ public class ProsecutionCaseClient {
      * lookup as "can't confirm this is Enforcement", not as a fatal error for the whole event.
      */
     public Optional<ProsecutionCaseDetails> findByCaseId(final UUID caseId) {
+        Optional<ProsecutionCaseDetails> result = Optional.empty();
         try {
             final ProsecutionCaseResponse response = restClient.get()
                     .uri("/prosecutioncases/{caseId}", caseId)
@@ -48,14 +49,14 @@ public class ProsecutionCaseClient {
                     .header(CJSCPPUID_HEADER, cjscppuid)
                     .retrieve()
                     .body(ProsecutionCaseResponse.class);
-            return Optional.ofNullable(response)
+            result = Optional.ofNullable(response)
                     .map(ProsecutionCaseResponse::prosecutionCase)
                     .map(ProsecutionCase::prosecutionCaseIdentifier)
                     .map(identifier -> new ProsecutionCaseDetails(identifier.prosecutionAuthorityOUCode(), identifier.caseUrn()));
         } catch (final RestClientException e) {
             log.error("Failed to look up prosecution case {} from Progression", caseId, e);
-            return Optional.empty();
         }
+        return result;
     }
 
     // Progression's progression.query.case response wraps the case under a "prosecutionCase" key
