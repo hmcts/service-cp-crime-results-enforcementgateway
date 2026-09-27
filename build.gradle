@@ -20,11 +20,24 @@ apply {
   from("$rootDir/gradle/pmd.gradle")
   from("$rootDir/gradle/test.gradle")
   from("$rootDir/gradle/jar.gradle")
+  from("$rootDir/gradle/apispec-validation.gradle")
+}
+
+// Contract jars whose versions validateApiSpecVersions checks on release.
+configurations {
+  apiSpec
 }
 
 // We MUST keep all dependencies in the build.gradle to allow dependabot to provide version updates
 // Sadly, dependabot does not track dependencies in the apply-from files
 dependencies {
+  // Api spec: this service's own contract (generated EnforcementHearingApi + HearingResulted models).
+  // 0.0.999 = local publishToMavenLocal build; replace with the published draft/release version.
+  implementation('uk.gov.hmcts.cp:api-cp-crime-results-enforcementgateway:0.0.999')
+  apiSpec('uk.gov.hmcts.cp:api-cp-crime-results-enforcementgateway:0.0.999')
+  // Generated models carry @Schema annotations; needed on the compile classpath (-Werror), as in service-cp-crime-results-pcr
+  implementation 'io.swagger.core.v3:swagger-annotations:2.2.55'
+
   // Java core
   implementation 'net.logstash.logback:logstash-logback-encoder:9.0'
 
@@ -35,7 +48,9 @@ dependencies {
 
   // Spring boot core
   implementation 'org.springframework.boot:spring-boot-starter-web'
+  implementation 'org.springframework.boot:spring-boot-starter-validation'
   testImplementation "org.springframework.boot:spring-boot-starter-webmvc-test"
+  testImplementation 'org.wiremock:wiremock-standalone:3.13.2'
   testImplementation('org.springframework.boot:spring-boot-starter-test') {
     exclude group: 'junit', module: 'junit'
     exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'

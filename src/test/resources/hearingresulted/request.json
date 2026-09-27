@@ -1,0 +1,33 @@
+{
+  "caseUrn": "E012345678",
+  "dateOfHearing": "2026-05-03",
+  "courtHearingLocation": "B01LY00",
+  "defendantDetails": {
+    "prosecutorDefendantId": "1234567890",
+    "forename": "Edward",
+    "surname": "Harrison",
+    "dateOfBirth": "2002-01-10",
+    "nationalInsuranceNumber": "NH195839C",
+    "address1": "1 High Street",
+    "address3": "London",
+    "postcode": "N17 6RT"
+  },
+  "paymentTerms": {
+    "paymentDueDate": "2026-05-03",
+    "paymentCardRequested": "N",
+    "parentToPay": "N"
+  },
+  "enforcement": {
+    "prisonSentenceIndicator": "N"
+  },
+  "results": [
+    { "resultCode": "SC" },
+    { "resultCode": "DW" }
+  ],
+  "nowsDataRequest": {
+    "nowsDataItems": [
+      { "name": "Account Balance" },
+      { "name": "CT Account Bank Details" }
+    ]
+  }
+}

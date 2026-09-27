@@ -1,0 +1,12 @@
+{
+  "caseUrn": "E012345678",
+  "timestamp": "2026-05-03T14:30:00Z",
+  "correlationId": "9f3d2e42-8d30-4d16-9dd6-6d4e26889d5c",
+  "nowsDataItems": {
+    "accountBalance": 125.5,
+    "ctBankDetails": {
+      "ct_account_number": 10246456,
+      "ct_sort_code": 148941
+    }
+  }
+}

@@ -1,6 +1,10 @@
 spring:
   application:
     name: service-cp-crime-results-enforcementgateway
+  jackson:
+    # HTTP responses leave out nulls, so a Libra reply passed back by POST /hearingResulted doesn't gain
+    # "field": null entries Libra never sent (the Libra schemas are not nullable). Serialisation only.
+    default-property-inclusion: non_null
   artemis:
     mode: native
     broker-url: ${ARTEMIS_BROKER_URL:tcp://localhost:61616}
@@ -113,14 +117,17 @@ cp:
     # A dedicated new subscription key for cppi-v4 needs issuing by whoever administers that
     # APIM instance.
     apim-subscription-key: ${LIBRA_APIM_SUBSCRIPTION_KEY:}
+    # Timeout budget (workflow research.md R20): APIM forward 35s < this read 40s; this total 45s < workflow read 50s.
+    connect-timeout-ms: ${LIBRA_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${LIBRA_READ_TIMEOUT_MS:40000}
   enforcement:
     # Confirmed by BA 2026-08-28: the Enforcement prosecuting-authority OUCODE, shared by both
     # the "Enforcement" and "Enforcement (Auto)" rota business types (single-date vs date-range
     # submissions use the same prosecuting authority).
     authority-code: ${ENFORCEMENT_AUTHORITY_CODE:GAPGD00}
   http-client:
-    # Applies to the Progression call only - the Libra/APIM call deliberately has no custom
-    # timeout, see cp.libra above. Prevents a hung call from stalling the JMS listener thread
+    # Applies to the Progression call only - the Libra/APIM call has its own timeouts, see
+    # cp.libra.connect-timeout-ms / read-timeout-ms above. Prevents a hung call from stalling the JMS listener thread
     # indefinitely. No formal SLA agreed with Progression yet - per your steer (2026-09-08),
     # using 10s for both connect and read as the working value for now.
     connect-timeout-ms: ${HTTP_CLIENT_CONNECT_TIMEOUT_MS:10000}

@@ -17,8 +17,8 @@ class RestClientConfigTest {
     }
 
     @Test
-    void libraRestClientBuilderCreatesPlainBuilderWithNoCustomTimeoutOrTls() {
-        final RestClient.Builder builder = config.libraRestClientBuilder();
+    void libraRestClientBuilderCreatesBuilderWithTimeoutsAndNoCustomTls() {
+        final RestClient.Builder builder = config.libraRestClientBuilder(5000, 40000);
 
         assertThat(builder).isNotNull();
     }
