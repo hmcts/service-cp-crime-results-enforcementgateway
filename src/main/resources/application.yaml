@@ -113,6 +113,9 @@ cp:
     # A dedicated new subscription key for cppi-v4 needs issuing by whoever administers that
     # APIM instance.
     apim-subscription-key: ${LIBRA_APIM_SUBSCRIPTION_KEY:}
+    # Timeout budget (workflow research.md R20): APIM forward 35s < this read 40s; this total 45s < workflow read 50s.
+    connect-timeout-ms: ${LIBRA_CONNECT_TIMEOUT_MS:5000}
+    read-timeout-ms: ${LIBRA_READ_TIMEOUT_MS:40000}
   enforcement:
     # Confirmed by BA 2026-08-28: the Enforcement prosecuting-authority OUCODE, shared by both
     # the "Enforcement" and "Enforcement (Auto)" rota business types (single-date vs date-range
