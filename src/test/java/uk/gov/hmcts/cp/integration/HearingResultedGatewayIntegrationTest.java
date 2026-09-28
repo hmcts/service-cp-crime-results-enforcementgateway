@@ -15,6 +15,7 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import uk.gov.hmcts.cp.support.HearingResultedFixtures;
+import uk.gov.hmcts.cp.support.OwnContract;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
@@ -76,7 +77,9 @@ class HearingResultedGatewayIntegrationTest {
         mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/hearingResulted")
                         .contentType(MediaType.APPLICATION_JSON).content(HearingResultedFixtures.requestJson()))
                 .andExpect(status().isOk())
-                .andExpect(content().json(HearingResultedFixtures.responseJson()));
+                .andExpect(content().json(HearingResultedFixtures.responseJson()))
+                .andExpect(result -> assertThat(OwnContract.violations("HearingResultedResponse",
+                        result.getResponse().getContentAsString())).isEmpty());
 
         APIM.verify(postRequestedFor(urlEqualTo("/hearingResulted"))
                 .withRequestBody(equalToJson(HearingResultedFixtures.requestJson(), true, false))); // nowsDataItems is a set: order-free, no extra fields
@@ -93,7 +96,9 @@ class HearingResultedGatewayIntegrationTest {
                         .contentType(MediaType.APPLICATION_JSON).content(HearingResultedFixtures.requestJson()))
                 .andExpect(status().isBadGateway())
                 .andExpect(jsonPath("$.details.libraStatus").value(404))
-                .andExpect(jsonPath("$.details.errorCode").value("E404"));
+                .andExpect(jsonPath("$.details.errorCode").value("E404"))
+                .andExpect(result -> assertThat(OwnContract.violations("ErrorResponse",
+                        result.getResponse().getContentAsString())).isEmpty());
         assertNoPiiLogged(output);
     }
 
