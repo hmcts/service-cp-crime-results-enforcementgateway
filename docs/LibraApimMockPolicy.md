@@ -8,8 +8,9 @@ a real backend the same way.
 
 ## Where this goes
 
-`LibraClient` only checks the HTTP status code (`.retrieve().toBodilessEntity()` — it never reads
-the response body), so the mock only needs to control the status.
+For `confirmedHearing`, `LibraClient.confirmHearing` only checks the HTTP status code
+(`.retrieve().toBodilessEntity()`), so its mock only needs to control the status. The hearing-result call
+(`LibraClient.resultHearing`) **does** read the body: see the `libra-hearingresulted` section at the end.
 
 **Important**: don't add this as a new operation inside the existing `CppGatewayService` API in
 APIM — that API is labelled "SOAP" because it was imported from `CPPSoapGateway.wsdl` as a SOAP
@@ -224,3 +225,80 @@ scenario and a failure scenario in parallel this way).
   integration exists, so it doesn't get mistaken for real behaviour later.
 - Point `cp.libra.apim-base-url` (in `service-cp-crime-results-enforcementgateway`'s config) at this
   test APIM API's URL to exercise `LibraClient` end-to-end against it.
+
+---
+
+# `libra-hearingresulted`: request to the APIM/platform team, and mock policy (CIMD-4246)
+
+The hearing-result call **needs a response body**. Unlike `confirmedHearing`, the gateway's
+`LibraClient.resultHearing` reads the `HearingResultedResponse` (the NOWS data items) and returns it to
+`service-cp-crime-results-enforcementworkflow`. Contract detail:
+`service-cp-crime-results-enforcementworkflow/specs/001-cimd-4246-hearing-resulted-to-libra/contracts/apim-libra-hearingresulted.md`.
+
+## Request to the APIM/platform team
+
+| Item | Value |
+|---|---|
+| API | existing `cppi-v4`, the same product/subscription as `libra-confirmedhearing` |
+| Operation | `libra-hearingresulted`: `POST /hearingResulted` |
+| Backend | Libra `POST /hearing/result` (Libra Gateway Hearing Event API v0.4.0, `resultHearing`) |
+| Inbound auth to APIM | `Ocp-Apim-Subscription-Key` (as `libra-confirmedhearing`) |
+| Onward auth | OAuth2 client credentials to Libra (`/auth/token`), handled in the policy (as `libra-confirmedhearing`) |
+| Response | **pass the Libra status and JSON body through unchanged** (200 `HearingResultedResponse`; 4xx/5xx `{errorCode, errorDescription}`) |
+| Timeout | **`<forward-request timeout="35" />`**. It must stay below the gateway's `cp.libra.read-timeout-ms` (40s), so APIM returns a clean 504 instead of the caller timing out first (timeout budget R20). |
+
+## Mock policy: `libra-hearingresulted` (test environments only)
+
+Header-driven, like Variant A above. `X-Mock-Response-Code` absent or `200` → 200 with a sample
+`HearingResultedResponse` body. Any 4xx/5xx value → that status with a Libra-style error body.
+
+```xml
+<policies>
+    <inbound>
+        <base />
+        <!-- Test-only mock for libra-hearingresulted. Remove once the real APIM->Libra integration exists. -->
+        <choose>
+            <when condition='@(context.Request.Headers.GetValueOrDefault("X-Mock-Response-Code", "200") == "200")'>
+                <return-response>
+                    <set-status code="200" reason="OK" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>@{
+                        var caseUrn = (string)context.Request.Body.As<Newtonsoft.Json.Linq.JObject>(preserveContent: true)["caseUrn"];
+                        return new Newtonsoft.Json.Linq.JObject(
+                            new Newtonsoft.Json.Linq.JProperty("caseUrn", caseUrn),
+                            new Newtonsoft.Json.Linq.JProperty("timestamp", DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")),
+                            new Newtonsoft.Json.Linq.JProperty("correlationId", Guid.NewGuid().ToString()),
+                            new Newtonsoft.Json.Linq.JProperty("nowsDataItems", new Newtonsoft.Json.Linq.JObject(
+                                new Newtonsoft.Json.Linq.JProperty("accountBalance", 125.5),
+                                new Newtonsoft.Json.Linq.JProperty("accountNumber", "1234567890")))
+                        ).ToString();
+                    }</set-body>
+                </return-response>
+            </when>
+            <otherwise>
+                <return-response>
+                    <set-status code='@(int.Parse(context.Request.Headers.GetValueOrDefault("X-Mock-Response-Code", "400")))' reason="Simulated error" />
+                    <set-header name="Content-Type" exists-action="override">
+                        <value>application/json</value>
+                    </set-header>
+                    <set-body>{"errorCode":"MOCK_ERROR","errorDescription":"Simulated Libra error from APIM mock policy"}</set-body>
+                </return-response>
+            </otherwise>
+        </choose>
+    </inbound>
+    <backend>
+        <base />
+    </backend>
+    <outbound>
+        <base />
+    </outbound>
+    <on-error>
+        <base />
+    </on-error>
+</policies>
+```
+
+Note the sample body follows the **schema** (`accountBalance` is a number, `accountNumber` is a string),
+not Libra's v0.4.0 example, which wraps both in objects and is invalid against its own schema.

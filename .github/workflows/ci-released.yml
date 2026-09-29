@@ -6,13 +6,27 @@ on:
   workflow_dispatch:
 
 jobs:
-  # NOTE: the template's `validate-api-spec-version` job (./gradlew validateApiSpecVersions)
-  # was removed until this service wires its `apiSpec` dependency on
-  # api-cp-crime-results-enforcementgateway. Re-add it — apply
-  # gradle/apispec-validation.gradle and declare an `apiSpec` configuration — once the
-  # generated API client is consumed, so released builds pin a fixed spec version.
+  validate-api-spec-version:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: current
+
+      - name: Validate apiSpec version is fixed
+        run: ./gradlew validateApiSpecVersions
 
   ci-release:
+    needs: validate-api-spec-version
     uses: ./.github/workflows/ci-build-publish.yml
     secrets:
       AZURE_DEVOPS_ARTIFACT_USERNAME: ${{ secrets.AZURE_DEVOPS_ARTIFACT_USERNAME }}

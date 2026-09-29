@@ -17,7 +17,8 @@ tasks.register('validateApiSpecVersions') {
     def fixedVersionPattern = ~/^\d+\.\d+\.\d+$/
     def failures = []
     configurations.apiSpec.dependencies.each { dep ->
-      if (!(dep.version ==~ fixedVersionPattern)) {
+      // 0.0.999 is the local publishToMavenLocal placeholder (build.gradle default), never a published version
+      if (!(dep.version ==~ fixedVersionPattern) || dep.version == '0.0.999') {
         failures << "${dep.group}:${dep.name}:${dep.version}"
       }
     }

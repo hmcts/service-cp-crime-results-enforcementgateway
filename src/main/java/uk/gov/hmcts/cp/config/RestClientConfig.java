@@ -37,14 +37,18 @@ public class RestClientConfig {
     }
 
     /**
-     * The Libra/APIM call is deliberately simple - matching {@code cpp-context-staging-dvla}'s
-     * equivalent outbound-to-APIM client, which sets no custom timeout at all. No connect/read
-     * timeout, no TLS customisation: APIM is the trust boundary and does the real work
-     * authenticating onward to Libra (OAuth2, per the architect) - this leg is just a plain POST.
+     * The Libra/APIM call has no TLS customisation or client auth: APIM is the trust boundary and
+     * does the real work authenticating onward to Libra (OAuth2, per the architect). It does have
+     * bounded timeouts. The hearing-result call waits for a response body inside the workflow's
+     * call chain, and the timeout budget (workflow research.md R20) requires this hop (5s + 40s) to
+     * give up before the workflow's 50s read timeout, and APIM's 35s forward timeout to give up
+     * before this one.
      */
     @Bean(name = "libraRestClientBuilder")
     @Scope("prototype")
-    public RestClient.Builder libraRestClientBuilder() {
-        return RestClient.builder();
+    public RestClient.Builder libraRestClientBuilder(
+            @Value("${cp.libra.connect-timeout-ms:5000}") final long connectTimeoutMs,
+            @Value("${cp.libra.read-timeout-ms:40000}") final long readTimeoutMs) {
+        return restClientBuilder(connectTimeoutMs, readTimeoutMs);
     }
 }

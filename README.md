@@ -34,6 +34,37 @@ environment-specific values (Libra/APIM base URL and subscription key for prod, 
 query-api base URL, `CJSCPPUID`, and which deploy repo this service onboards into) are still
 outstanding - see `libra-hearing-confirmation-plan.md` for the up-to-date list.
 
+## Hearing result to Libra — `POST /hearingResulted` (CIMD-4246)
+
+The gateway now also has a synchronous **inbound** endpoint, `POST /hearingResulted`. It is called only by
+`service-cp-crime-results-enforcementworkflow`, which holds all the business logic. The gateway is a thin
+outbound connection point:
+
+- **Contract**: `postHearingResulted` in `api-cp-crime-results-enforcementgateway`. The generated
+  `EnforcementHearingApi` is implemented by `HearingResultedController`. Request and response schemas are
+  copied from Libra Gateway Hearing Event API v0.4.0.
+- **Flow**: validate against the contract → `LibraClient.resultHearing` → Azure APIM
+  (`cppi-v4`, operation `libra-hearingresulted`, `Ocp-Apim-Subscription-Key`) → Libra `POST /hearing/result`.
+  Libra's `HearingResultedResponse` is returned **semantically unchanged**: null fields are left out, unknown
+  fields are dropped, and timestamps are normalised. Absent optional blocks are never sent as JSON nulls.
+- **Responses**: `200` Libra's body; `400` payload doesn't match the contract (`error: INVALID_PAYLOAD`); `415`
+  wrong content type; `502` Libra/APIM rejected (any non-2xx, incl. 3xx), failed or timed out (`error:
+  LIBRA_CALL_FAILED`, `details.libraStatus` / `errorCode` / `errorDescription`; `libraStatus` null = no
+  response), **or** Libra returned 2xx with an empty or invalid body (`libraStatus` 200, `errorCode`
+  `INVALID_RESPONSE`: GOB accepted it). No retries. Unknown request fields are dropped, and the request's
+  `uniqueItems` / `additionalProperties: false` aren't enforced (workflow research.md open item 16).
+- **Timeouts** (`cp.libra.connect-timeout-ms` 5000 / `cp.libra.read-timeout-ms` 40000, env
+  `LIBRA_CONNECT_TIMEOUT_MS` / `LIBRA_READ_TIMEOUT_MS`): part of a budget where each hop gives up before
+  its caller. APIM forward 35s < gateway 40s read; gateway 45s total < the workflow's 50s read. These
+  also apply to the `confirmedHearing` call.
+- **APIM**: the `libra-hearingresulted` operation and a body-returning mock are requested in
+  [`docs/LibraApimMockPolicy.md`](docs/LibraApimMockPolicy.md).
+- **Access control**: there is no request authentication in iteration 1. The endpoint must be reachable
+  only from the enforcement workflow: see [`docs/InboundAccess.md`](docs/InboundAccess.md) (required
+  before any deployment beyond local). Service-to-service bearer auth (the PCR Entra pattern) is a later
+  step, pending the tech lead's decision.
+- **Logging**: `caseUrn` and the outcome only. The payloads carry defendant PII and bank details and are never logged.
+
 ## Tech stack
 
 - **Java 25**, **Spring Boot 4**, **Gradle**
