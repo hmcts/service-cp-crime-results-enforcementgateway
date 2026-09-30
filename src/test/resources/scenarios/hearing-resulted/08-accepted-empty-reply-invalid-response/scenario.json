@@ -1,0 +1,15 @@
+{
+  "description": "Libra accepts (200) with an empty body: 502 INVALID_RESPONSE with libraStatus 200",
+  "apim": {
+    "status": 200
+  },
+  "expected": {
+    "status": 502,
+    "apimCalls": 1,
+    "error": "LIBRA_CALL_FAILED",
+    "details": {
+      "libraStatus": 200,
+      "errorCode": "INVALID_RESPONSE"
+    }
+  }
+}

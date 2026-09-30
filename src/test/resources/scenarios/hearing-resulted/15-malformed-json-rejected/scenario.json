@@ -1,0 +1,11 @@
+{
+  "description": "A body that isn't JSON: 400 INVALID_PAYLOAD, APIM never called",
+  "request": {
+    "text": "{\"caseUrn\": "
+  },
+  "expected": {
+    "status": 400,
+    "apimCalls": 0,
+    "error": "INVALID_PAYLOAD"
+  }
+}

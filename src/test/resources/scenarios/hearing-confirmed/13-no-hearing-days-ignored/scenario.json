@@ -1,0 +1,25 @@
+{
+  "description": "No sitting day on the event: nothing to confirm, no callback",
+  "event": {
+    "confirmedHearing": {
+      "courtCentre": {
+        "code": "B01LY00"
+      },
+      "prosecutionCases": [
+        {
+          "id": "5b1f6c1e-1111-4a2b-9c3d-000000000001"
+        }
+      ]
+    },
+    "sendNotificationToParties": true
+  },
+  "progression": {
+    "5b1f6c1e-1111-4a2b-9c3d-000000000001": {
+      "ouCode": "GAPGD00",
+      "caseUrn": "12GD3456789"
+    }
+  },
+  "expected": {
+    "callbacks": []
+  }
+}

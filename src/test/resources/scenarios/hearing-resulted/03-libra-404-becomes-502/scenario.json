@@ -1,0 +1,20 @@
+{
+  "description": "Libra 404 (no GoB record): 502 with Libra's status and error fields",
+  "apim": {
+    "status": 404,
+    "body": {
+      "errorCode": "E404",
+      "errorDescription": "No GoB enforcement record"
+    }
+  },
+  "expected": {
+    "status": 502,
+    "apimCalls": 1,
+    "error": "LIBRA_CALL_FAILED",
+    "details": {
+      "libraStatus": 404,
+      "errorCode": "E404",
+      "errorDescription": "No GoB enforcement record"
+    }
+  }
+}

@@ -55,6 +55,8 @@ cp:
     selector: "CPPNAME IN ('public.listing.hearing-listed','public.listing.hearing-confirmed','public.listing.hearing-updated')"
     # Separate durable subscription for the real business logic (hearing-listed deliberately
     # excluded - not related to the Libra confirmedHearing flow).
+    # own JMS client id: a second durable listener sharing spring.jms.client-id fails to connect (HearingAllocationJmsConfig)
+    hearing-allocation-client-id: service-cp-crime-results-enforcementgateway.hearing-allocation
     hearing-allocation-subscription-name: service-cp-crime-results-enforcementgateway.hearing-allocation
     hearing-allocation-selector: "CPPNAME IN ('public.listing.hearing-confirmed','public.listing.hearing-updated')"
   progression:

@@ -1,0 +1,17 @@
+{
+  "description": "Libra 500 with a body that isn't Libra's JSON: 502 with the status only",
+  "apim": {
+    "status": 500,
+    "bodyText": "<html><body>Server Error</body></html>"
+  },
+  "expected": {
+    "status": 502,
+    "apimCalls": 1,
+    "error": "LIBRA_CALL_FAILED",
+    "details": {
+      "libraStatus": 500,
+      "errorCode": null,
+      "errorDescription": null
+    }
+  }
+}

@@ -1,6 +1,9 @@
 package uk.gov.hmcts.cp.client;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import tools.jackson.databind.node.ObjectNode;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -35,7 +38,7 @@ class LibraClientResultHearingTest {
     private final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
 
     @Test
-    void should_post_to_apim_and_return_the_response_body() {
+    void shouldPostToApimAndReturnTheResponseBody() {
         server.expect(requestTo(BASE_URL + "/hearingResulted"))
                 .andExpect(method(POST))
                 .andExpect(content().contentType(MediaType.APPLICATION_JSON))
@@ -54,7 +57,7 @@ class LibraClientResultHearingTest {
     }
 
     @Test
-    void should_throw_libra_call_exception_with_libra_error_fields() {
+    void shouldThrowLibraCallExceptionWithLibraErrorFields() {
         server.expect(requestTo(BASE_URL + "/hearingResulted"))
                 .andRespond(withStatus(NOT_FOUND).contentType(MediaType.APPLICATION_JSON)
                         .body("{\"errorCode\":\"E404\",\"errorDescription\":\"No GoB enforcement record\"}"));
@@ -68,7 +71,7 @@ class LibraClientResultHearingTest {
     }
 
     @Test
-    void should_keep_status_when_error_body_is_not_libra_json() {
+    void shouldKeepStatusWhenErrorBodyIsNotLibraJson() {
         server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withStatus(INTERNAL_SERVER_ERROR).body("upstream down"));
 
         assertThatThrownBy(() -> client().resultHearing(HearingResultedFixtures.request()))
@@ -79,7 +82,7 @@ class LibraClientResultHearingTest {
     }
 
     @Test
-    void should_throw_libra_call_exception_for_bad_request() {
+    void shouldThrowLibraCallExceptionForBadRequest() {
         server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withStatus(BAD_REQUEST).contentType(MediaType.APPLICATION_JSON)
                 .body("{\"errorCode\":\"E400\",\"errorDescription\":\"Validation error\"}"));
 
@@ -91,7 +94,7 @@ class LibraClientResultHearingTest {
     }
 
     @Test
-    void should_throw_libra_call_exception_without_status_on_transport_failure() {
+    void shouldThrowLibraCallExceptionWithoutStatusOnTransportFailure() {
         server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withException(new IOException("connection reset")));
 
         assertThatThrownBy(() -> client().resultHearing(HearingResultedFixtures.request()))
@@ -103,7 +106,7 @@ class LibraClientResultHearingTest {
     }
 
     @Test
-    void accepted_with_empty_body_should_be_invalid_response_not_a_crash() {
+    void acceptedWithEmptyBodyShouldBeInvalidResponseNotACrash() {
         server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withSuccess());
 
         assertThatThrownBy(() -> client().resultHearing(HearingResultedFixtures.request()))
@@ -114,7 +117,7 @@ class LibraClientResultHearingTest {
     }
 
     @Test
-    void accepted_with_non_json_or_invalid_body_should_be_invalid_response() {
+    void acceptedWithNonJsonOrInvalidBodyShouldBeInvalidResponse() {
         server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withSuccess("<html>ok</html>", MediaType.TEXT_HTML));
 
         assertThatThrownBy(() -> client().resultHearing(HearingResultedFixtures.request()))
@@ -123,7 +126,7 @@ class LibraClientResultHearingTest {
     }
 
     @Test
-    void accepted_with_unknown_enum_value_should_be_invalid_response() {
+    void acceptedWithUnknownEnumValueShouldBeInvalidResponse() {
         final String body = HearingResultedFixtures.responseJson().replace("\"accountBalance\": 125.5",
                 "\"accountBalance\": 125.5, \"defendant\": {\"parentGuardian\": {\"parentToPayFlag\": \"XX\"}}");
         server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withSuccess(body, MediaType.APPLICATION_JSON));
@@ -133,11 +136,49 @@ class LibraClientResultHearingTest {
                         e -> assertThat(e.getErrorCode()).isEqualTo(LibraCallException.INVALID_RESPONSE));
     }
 
+    // HearingResultedResponse requires caseUrn, timestamp and nowsDataItems; a reply without one must not become a 200
+    @ParameterizedTest
+    @ValueSource(strings = {"caseUrn", "timestamp", "nowsDataItems"})
+    void acceptedWithoutARequiredFieldShouldBeInvalidResponse(final String field) {
+        final ObjectNode body = (ObjectNode) LibraClient.JSON.readTree(HearingResultedFixtures.responseJson());
+        body.remove(field);
+        server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withSuccess(body.toString(), MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client().resultHearing(HearingResultedFixtures.request()))
+                .isInstanceOfSatisfying(LibraCallException.class, e -> {
+                    assertThat(e.getLibraStatus()).isEqualTo(200);
+                    assertThat(e.getErrorCode()).isEqualTo(LibraCallException.INVALID_RESPONSE);
+                });
+    }
+
     @Test
-    void redirect_should_be_a_libra_failure() {
+    void redirectShouldBeALibraFailure() {
         server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withStatus(org.springframework.http.HttpStatus.FOUND));
 
         assertThatThrownBy(() -> client().resultHearing(HearingResultedFixtures.request()))
                 .isInstanceOfSatisfying(LibraCallException.class, e -> assertThat(e.getLibraStatus()).isEqualTo(302));
+    }
+
+    // the INVALID_RESPONSE status is the one Libra sent, not always 200
+    @Test
+    void accepted201WithEmptyBodyShouldReport201() {
+        server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withStatus(org.springframework.http.HttpStatus.CREATED));
+
+        assertThatThrownBy(() -> client().resultHearing(HearingResultedFixtures.request()))
+                .isInstanceOfSatisfying(LibraCallException.class, e -> {
+                    assertThat(e.getLibraStatus()).isEqualTo(201);
+                    assertThat(e.getErrorCode()).isEqualTo(LibraCallException.INVALID_RESPONSE);
+                });
+    }
+
+    // Welsh text survives a reply without a JSON content type (which would otherwise be read as ISO-8859-1)
+    @Test
+    void replyShouldBeReadAsUtf8WhateverItsContentType() {
+        final String body = HearingResultedFixtures.responseJson().replace("\"accountBalance\": 125.5",
+                "\"accountBalance\": 125.5, \"accountNumber\": \"Llŷr-Ŵ\"");
+        server.expect(requestTo(BASE_URL + "/hearingResulted"))
+                .andRespond(withSuccess(body.getBytes(java.nio.charset.StandardCharsets.UTF_8), MediaType.TEXT_PLAIN));
+
+        assertThat(client().resultHearing(HearingResultedFixtures.request()).getNowsDataItems().getAccountNumber()).isEqualTo("Llŷr-Ŵ");
     }
 }

@@ -1,0 +1,13 @@
+{
+  "description": "caseUrn missing: 400 INVALID_PAYLOAD, APIM never called",
+  "request": {
+    "remove": [
+      "/caseUrn"
+    ]
+  },
+  "expected": {
+    "status": 400,
+    "apimCalls": 0,
+    "error": "INVALID_PAYLOAD"
+  }
+}

@@ -1,0 +1,45 @@
+{
+  "description": "APIM rejects the callback (400) with a body echoing personal data: the failure is logged with the caseUrn and status only, never the body (constitution IV)",
+  "event": {
+    "confirmedHearing": {
+      "courtCentre": {
+        "code": "B01LY00"
+      },
+      "hearingDays": [
+        {
+          "sittingDay": "2026-07-15T09:30:00.000Z"
+        }
+      ],
+      "prosecutionCases": [
+        {
+          "id": "5b1f6c1e-1111-4a2b-9c3d-000000000001"
+        }
+      ]
+    },
+    "sendNotificationToParties": true
+  },
+  "progression": {
+    "5b1f6c1e-1111-4a2b-9c3d-000000000001": {
+      "ouCode": "GAPGD00",
+      "caseUrn": "12GD3456789"
+    }
+  },
+  "apim": {
+    "status": 400,
+    "body": "{\"errorCode\":\"E400\",\"errorDescription\":\"Defendant Edward Harrison not recognised\"}"
+  },
+  "expected": {
+    "callbacks": [
+      {
+        "caseUrn": "12GD3456789",
+        "courtHearingLocation": "B01LY00",
+        "dateOfHearing": "2026-07-15",
+        "timeOfHearing": "10:30"
+      }
+    ],
+    "logMustNotContain": [
+      "Edward",
+      "Harrison"
+    ]
+  }
+}
