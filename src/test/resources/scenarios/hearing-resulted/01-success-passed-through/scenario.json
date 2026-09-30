@@ -1,0 +1,11 @@
+{
+  "description": "Libra accepts: its reply is returned unchanged (200) and the request reaches APIM unchanged with the subscription key",
+  "apim": {
+    "status": 200,
+    "bodyResource": "hearingresulted/response.json"
+  },
+  "expected": {
+    "status": 200,
+    "apimCalls": 1
+  }
+}

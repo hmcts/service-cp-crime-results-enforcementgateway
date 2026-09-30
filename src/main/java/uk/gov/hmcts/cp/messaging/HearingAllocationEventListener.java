@@ -50,7 +50,8 @@ public class HearingAllocationEventListener {
     @JmsListener(
             destination = "${cp.messaging.public-event-topic}",
             subscription = "${cp.messaging.hearing-allocation-subscription-name}",
-            selector = "${cp.messaging.hearing-allocation-selector}")
+            selector = "${cp.messaging.hearing-allocation-selector}",
+            containerFactory = HearingAllocationJmsConfig.CONTAINER_FACTORY)
     public void onHearingAllocationEvent(final Message message) throws JMSException {
         final String eventName = message.getStringProperty("CPPNAME");
         try {
@@ -66,9 +67,11 @@ public class HearingAllocationEventListener {
             } else {
                 log.warn("{} event had neither '{}' nor '{}' key (jmsMessageId={})", eventName, CONFIRMED_HEARING_KEY, UPDATED_HEARING_KEY, message.getJMSMessageID());
             }
-            // deliberately broad: any failure processing one message must not kill this listener thread or block the JMS session
-        } catch (@SuppressWarnings("PMD.AvoidCatchingGenericException") final RuntimeException e) {
-            log.error("Failed to process {} event (jmsMessageId={})", eventName, message.getJMSMessageID(), e);
+            // deliberately broad: any failure processing one message must not kill this listener thread or block the
+            // JMS session. JMSException included: a non-text message would otherwise roll back and be redelivered.
+        } catch (@SuppressWarnings("PMD.AvoidCatchingGenericException") final RuntimeException | JMSException e) {
+            // class name only: a parse error message can quote the event body (constitution IV)
+            log.error("Failed to process {} event (jmsMessageId={}): {}", eventName, message.getJMSMessageID(), e.getClass().getSimpleName());
         }
     }
 

@@ -1,6 +1,9 @@
 package uk.gov.hmcts.cp.client;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -17,6 +20,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
+@ExtendWith(OutputCaptureExtension.class)
 class ProsecutionCaseClientTest {
 
     private static final String BASE_URL = "http://progression.test";
@@ -53,5 +57,18 @@ class ProsecutionCaseClientTest {
         final Optional<ProsecutionCaseDetails> result = new ProsecutionCaseClient(builder, BASE_URL, CJSCPPUID).findByCaseId(caseId);
 
         assertThat(result).isEmpty();
+    }
+
+    // constitution IV: an error body can echo case data, so only the status is logged
+    @Test
+    void failedLookupShouldNotLogTheErrorBody(final CapturedOutput output) {
+        final RestClient.Builder builder = RestClient.builder();
+        final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        final UUID caseId = UUID.randomUUID();
+        server.expect(requestTo(BASE_URL + "/prosecutioncases/" + caseId))
+                .andRespond(withStatus(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body("defendant Edward Harrison"));
+
+        assertThat(new ProsecutionCaseClient(builder, BASE_URL, CJSCPPUID).findByCaseId(caseId)).isEmpty();
+        assertThat(output.getAll()).contains(caseId.toString()).contains("HTTP 500").doesNotContain("Edward");
     }
 }

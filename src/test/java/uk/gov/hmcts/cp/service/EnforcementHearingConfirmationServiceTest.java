@@ -20,6 +20,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -144,5 +145,17 @@ class EnforcementHearingConfirmationServiceTest {
                 new ConfirmedHearingEvent.CourtCentre("B01LY"),
                 List.of(new ConfirmedHearingEvent.HearingDay(SITTING_DAY)),
                 List.of(caseIds).stream().map(ConfirmedHearingEvent.ConfirmedProsecutionCase::new).toList());
+    }
+
+    // the contract requires caseUrn; an enforcement case without one is skipped, not sent as null
+    @Test
+    void shouldNotCallLibraWhenTheEnforcementCaseHasNoCaseUrn() {
+        final UUID caseId = UUID.randomUUID();
+        when(prosecutionCaseClient.findByCaseId(caseId))
+                .thenReturn(Optional.of(new ProsecutionCaseDetails(ENFORCEMENT_AUTHORITY_CODE, " ")));
+
+        service.processConfirmedHearing(eventWithCases(caseId));
+
+        verifyNoInteractions(libraClient);
     }
 }

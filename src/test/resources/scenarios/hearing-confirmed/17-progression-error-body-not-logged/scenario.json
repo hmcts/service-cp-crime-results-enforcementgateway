@@ -1,0 +1,34 @@
+{
+  "description": "Progression fails (500) with a body echoing case data: no callback, and only the case id and status are logged (constitution IV)",
+  "event": {
+    "confirmedHearing": {
+      "courtCentre": {
+        "code": "B01LY00"
+      },
+      "hearingDays": [
+        {
+          "sittingDay": "2026-07-15T09:30:00.000Z"
+        }
+      ],
+      "prosecutionCases": [
+        {
+          "id": "5b1f6c1e-1111-4a2b-9c3d-000000000001"
+        }
+      ]
+    },
+    "sendNotificationToParties": true
+  },
+  "progression": {
+    "5b1f6c1e-1111-4a2b-9c3d-000000000001": {
+      "status": 500,
+      "body": "{\"message\":\"defendant Edward Harrison lookup failed\"}"
+    }
+  },
+  "expected": {
+    "callbacks": [],
+    "logMustNotContain": [
+      "Edward",
+      "Harrison"
+    ]
+  }
+}

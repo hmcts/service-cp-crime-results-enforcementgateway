@@ -9,6 +9,7 @@ import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 
 import java.util.Optional;
 import java.util.UUID;
@@ -53,8 +54,11 @@ public class ProsecutionCaseClient {
                     .map(ProsecutionCaseResponse::prosecutionCase)
                     .map(ProsecutionCase::prosecutionCaseIdentifier)
                     .map(identifier -> new ProsecutionCaseDetails(identifier.prosecutionAuthorityOUCode(), identifier.caseUrn()));
+        } catch (final RestClientResponseException e) {
+            // status only: the error body can echo case data (constitution IV)
+            log.error("Failed to look up prosecution case {} from Progression: HTTP {}", caseId, e.getStatusCode().value());
         } catch (final RestClientException e) {
-            log.error("Failed to look up prosecution case {} from Progression", caseId, e);
+            log.error("Failed to look up prosecution case {} from Progression: {}", caseId, e.getClass().getSimpleName());
         }
         return result;
     }

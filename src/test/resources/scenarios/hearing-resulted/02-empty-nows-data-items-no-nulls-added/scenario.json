@@ -1,0 +1,15 @@
+{
+  "description": "A reply with an empty nowsDataItems is returned as is, without null fields added",
+  "apim": {
+    "status": 200,
+    "body": {
+      "caseUrn": "E012345678",
+      "timestamp": "2026-05-03T14:30:00Z",
+      "nowsDataItems": {}
+    }
+  },
+  "expected": {
+    "status": 200,
+    "apimCalls": 1
+  }
+}

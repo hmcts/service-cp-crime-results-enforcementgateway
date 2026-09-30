@@ -1,0 +1,18 @@
+{
+  "description": "Libra accepts (200) with a JSON object missing caseUrn, timestamp and nowsDataItems: 502 INVALID_RESPONSE, never a 200 that breaks the contract",
+  "apim": {
+    "status": 200,
+    "body": {
+      "unexpected": true
+    }
+  },
+  "expected": {
+    "status": 502,
+    "apimCalls": 1,
+    "error": "LIBRA_CALL_FAILED",
+    "details": {
+      "libraStatus": 200,
+      "errorCode": "INVALID_RESPONSE"
+    }
+  }
+}

@@ -35,7 +35,7 @@ class LibraRestClientTimeoutTest {
     }
 
     @Test
-    void read_timeout_should_be_applied() {
+    void readTimeoutShouldBeApplied() {
         apim.stubFor(post(urlEqualTo("/hearingResulted")).willReturn(aResponse().withStatus(200).withFixedDelay(2000)));
         final RestClient client = new RestClientConfig().libraRestClientBuilder(5000, 300).baseUrl(apim.baseUrl()).build();
 
@@ -44,7 +44,7 @@ class LibraRestClientTimeoutTest {
     }
 
     @Test
-    void defaults_should_stay_below_the_workflow_read_timeout() throws IOException {
+    void defaultsShouldStayBelowTheWorkflowReadTimeout() throws IOException {
         final PropertySource<?> yaml = new YamlPropertySourceLoader()
                 .load("application", new ClassPathResource("application.yaml")).getFirst();
 

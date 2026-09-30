@@ -30,7 +30,7 @@ class HearingResultedControllerTest {
     private LibraClient libraClient;
 
     @Test
-    void valid_request_should_return_libra_response_unchanged() throws Exception {
+    void validRequestShouldReturnLibraResponseUnchanged() throws Exception {
         when(libraClient.resultHearing(any())).thenReturn(
                 LibraClient.JSON.readValue(HearingResultedFixtures.responseJson(), HearingResultedResponse.class));
 
@@ -40,7 +40,7 @@ class HearingResultedControllerTest {
     }
 
     @Test
-    void missing_case_urn_should_return_400() throws Exception {
+    void missingCaseUrnShouldReturn400() throws Exception {
         final String body = HearingResultedFixtures.requestJson().replace("\"caseUrn\": \"E012345678\",", "");
 
         mockMvc.perform(post("/hearingResulted").contentType(MediaType.APPLICATION_JSON).content(body))
@@ -50,7 +50,7 @@ class HearingResultedControllerTest {
     }
 
     @Test
-    void unknown_result_code_should_return_400() throws Exception {
+    void unknownResultCodeShouldReturn400() throws Exception {
         final String body = HearingResultedFixtures.requestJson().replace("\"resultCode\": \"SC\"", "\"resultCode\": \"XYZ\"");
 
         mockMvc.perform(post("/hearingResulted").contentType(MediaType.APPLICATION_JSON).content(body))
@@ -60,7 +60,7 @@ class HearingResultedControllerTest {
     }
 
     @Test
-    void libra_failure_should_return_502_with_libra_details() throws Exception {
+    void libraFailureShouldReturn502WithLibraDetails() throws Exception {
         when(libraClient.resultHearing(any())).thenThrow(new LibraCallException(404, "E1", "not found", null));
 
         mockMvc.perform(post("/hearingResulted").contentType(MediaType.APPLICATION_JSON).content(HearingResultedFixtures.requestJson()))
@@ -72,21 +72,21 @@ class HearingResultedControllerTest {
     }
 
     @Test
-    void wrong_content_type_should_be_415_not_500() throws Exception {
+    void wrongContentTypeShouldBe415Not500() throws Exception {
         mockMvc.perform(post("/hearingResulted").contentType(MediaType.TEXT_PLAIN).content("x"))
                 .andExpect(status().isUnsupportedMediaType());
         verifyNoInteractions(libraClient);
     }
 
     @Test
-    void confirmed_hearing_should_not_be_exposed() throws Exception {
+    void confirmedHearingShouldNotBeExposed() throws Exception {
         mockMvc.perform(post("/confirmedHearing").contentType(MediaType.APPLICATION_JSON)
                         .content("{\"caseUrn\":\"E012345678\",\"courtHearingLocation\":\"B01LY00\",\"dateOfHearing\":\"2026-05-03\",\"timeOfHearing\":\"10:00\"}"))
                 .andExpect(status().isNotImplemented());
     }
 
     @Test
-    void libra_accepted_but_invalid_reply_should_be_502_with_status_200() throws Exception {
+    void libraAcceptedButInvalidReplyShouldBe502WithStatus200() throws Exception {
         when(libraClient.resultHearing(any())).thenThrow(LibraCallException.invalidResponse(200, "empty response body"));
 
         mockMvc.perform(post("/hearingResulted").contentType(MediaType.APPLICATION_JSON).content(HearingResultedFixtures.requestJson()))

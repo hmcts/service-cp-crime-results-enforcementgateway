@@ -1,0 +1,17 @@
+{
+  "description": "APIM replies after the read timeout: 502 with no Libra status (outcome unknown)",
+  "apim": {
+    "status": 200,
+    "bodyResource": "hearingresulted/response.json",
+    "delayMs": 2500
+  },
+  "expected": {
+    "status": 502,
+    "apimCalls": 1,
+    "error": "LIBRA_CALL_FAILED",
+    "details": {
+      "libraStatus": null,
+      "errorCode": null
+    }
+  }
+}

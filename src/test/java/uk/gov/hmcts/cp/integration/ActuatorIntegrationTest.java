@@ -20,7 +20,7 @@ class ActuatorIntegrationTest {
     private MockMvc mockMvc;
 
     @Test
-    void actuator_info_should_have_build_fields() throws Exception {
+    void actuatorInfoShouldHaveBuildFields() throws Exception {
         final String name = "service-cp-crime-results-enforcementgateway";
         mockMvc.perform(get("/actuator/info"))
                 .andDo(print())
@@ -32,7 +32,7 @@ class ActuatorIntegrationTest {
     }
 
     @Test
-    void actuator_info_should_have_gorylenko_git_fields() throws Exception {
+    void actuatorInfoShouldHaveGorylenkoGitFields() throws Exception {
         mockMvc.perform(get("/actuator/info"))
                 .andDo(print())
                 .andExpect(status().isOk())
@@ -42,7 +42,7 @@ class ActuatorIntegrationTest {
     }
 
     @Test
-    void actuator_health_should_have_correct_fields() throws Exception {
+    void actuatorHealthShouldHaveCorrectFields() throws Exception {
         mockMvc.perform(get("/actuator/health"))
                 .andDo(print())
                 .andExpect(status().isOk())

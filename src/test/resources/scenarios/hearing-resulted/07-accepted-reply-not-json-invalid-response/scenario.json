@@ -1,0 +1,16 @@
+{
+  "description": "Libra accepts (200) but the reply isn't JSON: 502 INVALID_RESPONSE with libraStatus 200, so the caller knows GOB accepted it",
+  "apim": {
+    "status": 200,
+    "bodyText": "not json"
+  },
+  "expected": {
+    "status": 502,
+    "apimCalls": 1,
+    "error": "LIBRA_CALL_FAILED",
+    "details": {
+      "libraStatus": 200,
+      "errorCode": "INVALID_RESPONSE"
+    }
+  }
+}

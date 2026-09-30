@@ -32,7 +32,10 @@ The domain implementation is built: `HearingAllocationEventListener` consumes
 (`cp.libra.apim-base-url`/`cp.libra.apim-subscription-key`, see `application.yaml`). Several
 environment-specific values (Libra/APIM base URL and subscription key for prod, Progression's
 query-api base URL, `CJSCPPUID`, and which deploy repo this service onboards into) are still
-outstanding - see `libra-hearing-confirmation-plan.md` for the up-to-date list.
+outstanding - see open item 9 in the workflow repo's `specs/001-cimd-4246-hearing-resulted-to-libra/research.md`.
+
+Both JMS listeners (and so the whole confirmedHearing flow) run only under the `docker` Spring profile: a
+deployment must set `SPRING_PROFILES_ACTIVE=docker`, or the service starts without consuming any events.
 
 ## Hearing result to Libra — `POST /hearingResulted` (CIMD-4246)
 
@@ -87,6 +90,47 @@ gradle -v
 gradle build      # compile + checks + unit/integration tests
 gradle test       # unit and integration tests only
 ```
+
+### Integration test scenarios
+
+The integration tests need no external services. Listing events are published on `public.event` to an
+embedded Artemis broker and consumed by the real listeners (`docker` profile), and `POST /hearingResulted`
+is called through MockMvc. One WireMock server stands in for both APIM and the Progression query API.
+`JmsListenersIntegrationTest` checks that every listener connects (each durable listener has its own
+client id: `HearingAllocationJmsConfig`), that `hearing-listed` isn't consumed by the allocation listener,
+and that a malformed message doesn't stop the next one. Most cases are data-driven: **add a folder, not
+test code**. Folders run in name order, and an unknown field in a `scenario.json` fails the test.
+
+**`src/test/resources/scenarios/hearing-confirmed/<NN-name>/scenario.json`** (the confirmedHearing flow)
+
+| Field | Meaning |
+|---|---|
+| `description` | What the scenario proves |
+| `cppName` | Optional; default `public.listing.hearing-confirmed` |
+| `event` | The message body as Listing publishes it (`confirmedHearing` or `updatedHearing` wrapper) |
+| `progression` | Case id → `{"ouCode", "caseUrn"}`, or `{"status": N, "body"?}`. Unlisted ids answer 404 |
+| `apim` | Optional `{"status", "delayMs", "body"}` for every callback; default 200 |
+| `expected.callbacks` | The exact `ConfirmedHearing` bodies APIM must receive, in order (`[]` = none) |
+| `expected.logMustNotContain` | Optional text that must not be logged |
+
+Every callback is also validated against the contract's `ConfirmedHearing` and must carry the
+subscription key. Scenarios that expect no callback are safe: the runner waits for a marker event
+published after the scenario's, so the scenario's own message is known to have been processed.
+
+**`src/test/resources/scenarios/hearing-resulted/<NN-name>/scenario.json`** (`POST /hearingResulted`)
+
+| Field | Meaning |
+|---|---|
+| `description` | What the scenario proves |
+| `request` | Optional. `set` (JSON pointer → value) and `remove` (JSON pointers) edit `hearingresulted/request.json`; `text` sends a raw body instead; `contentType` defaults to `application/json` |
+| `apim` | APIM's reply: `status`, then one of `bodyResource` (a test resource), `body` (JSON) or `bodyText`, and optional `delayMs` (over 1000 ms times out) and `headers`. Omit it when the request must not reach APIM |
+| `expected.status`, `expected.apimCalls` | Required: the HTTP status returned and the number of APIM calls |
+| `expected.error`, `expected.details` | For non-200: the `error` code, and `details` fields that must be equal (`null` included). Without `error`, the response must have no body (e.g. 415) |
+| `expected.response` | For a 200 that is only semantically equal to APIM's body (unknown fields dropped, timestamps normalised): the exact body expected instead |
+
+The runner always checks that APIM receives the request unchanged (array order aside: `nowsDataItems` is a set) with the subscription key, that the
+response is valid against the contract (`HearingResultedResponse` for 200, `ErrorResponse` otherwise),
+that a 200 is APIM's body unchanged, and that the fixtures' PII and bank details are never logged.
 
 ### Static analysis (PMD)
 

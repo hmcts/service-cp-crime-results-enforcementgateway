@@ -68,7 +68,7 @@ class HearingResultedGatewayIntegrationTest {
     }
 
     @Test
-    void success_should_pass_libra_body_through_unchanged(final CapturedOutput output) throws Exception {
+    void successShouldPassLibraBodyThroughUnchanged(final CapturedOutput output) throws Exception {
         APIM.stubFor(post(urlEqualTo("/hearingResulted"))
                 .withHeader("Ocp-Apim-Subscription-Key", equalTo(SUBSCRIPTION_KEY))
                 .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json")
@@ -87,7 +87,7 @@ class HearingResultedGatewayIntegrationTest {
     }
 
     @Test
-    void libra_404_should_become_502_with_details(final CapturedOutput output) throws Exception {
+    void libra404ShouldBecome502WithDetails(final CapturedOutput output) throws Exception {
         APIM.stubFor(post(urlEqualTo("/hearingResulted"))
                 .willReturn(aResponse().withStatus(404).withHeader("Content-Type", "application/json")
                         .withBody("{\"errorCode\":\"E404\",\"errorDescription\":\"No GoB enforcement record\"}")));
@@ -103,7 +103,7 @@ class HearingResultedGatewayIntegrationTest {
     }
 
     @Test
-    void apim_slower_than_read_timeout_should_become_502(final CapturedOutput output) throws Exception {
+    void apimSlowerThanReadTimeoutShouldBecome502(final CapturedOutput output) throws Exception {
         APIM.stubFor(post(urlEqualTo("/hearingResulted"))
                 .willReturn(aResponse().withStatus(200).withFixedDelay(READ_TIMEOUT_MS * 4)
                         .withHeader("Content-Type", "application/json").withBody(HearingResultedFixtures.responseJson())));
@@ -116,7 +116,7 @@ class HearingResultedGatewayIntegrationTest {
     }
 
     @Test
-    void empty_libra_reply_object_should_not_gain_null_fields() throws Exception {
+    void emptyLibraReplyObjectShouldNotGainNullFields() throws Exception {
         APIM.stubFor(post(urlEqualTo("/hearingResulted"))
                 .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json")
                         .withBody("{\"caseUrn\":\"E012345678\",\"timestamp\":\"2026-05-03T14:30:00Z\",\"nowsDataItems\":{}}")));
