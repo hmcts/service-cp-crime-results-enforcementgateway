@@ -1,6 +1,9 @@
 package uk.gov.hmcts.cp.client;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
+import tools.jackson.databind.node.ObjectNode;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -133,11 +136,49 @@ class LibraClientResultHearingTest {
                         e -> assertThat(e.getErrorCode()).isEqualTo(LibraCallException.INVALID_RESPONSE));
     }
 
+    // HearingResultedResponse requires caseUrn, timestamp and nowsDataItems; a reply without one must not become a 200
+    @ParameterizedTest
+    @ValueSource(strings = {"caseUrn", "timestamp", "nowsDataItems"})
+    void accepted_without_a_required_field_should_be_invalid_response(final String field) {
+        final ObjectNode body = (ObjectNode) LibraClient.JSON.readTree(HearingResultedFixtures.responseJson());
+        body.remove(field);
+        server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withSuccess(body.toString(), MediaType.APPLICATION_JSON));
+
+        assertThatThrownBy(() -> client().resultHearing(HearingResultedFixtures.request()))
+                .isInstanceOfSatisfying(LibraCallException.class, e -> {
+                    assertThat(e.getLibraStatus()).isEqualTo(200);
+                    assertThat(e.getErrorCode()).isEqualTo(LibraCallException.INVALID_RESPONSE);
+                });
+    }
+
     @Test
     void redirect_should_be_a_libra_failure() {
         server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withStatus(org.springframework.http.HttpStatus.FOUND));
 
         assertThatThrownBy(() -> client().resultHearing(HearingResultedFixtures.request()))
                 .isInstanceOfSatisfying(LibraCallException.class, e -> assertThat(e.getLibraStatus()).isEqualTo(302));
+    }
+
+    // the INVALID_RESPONSE status is the one Libra sent, not always 200
+    @Test
+    void accepted_201_with_empty_body_should_report_201() {
+        server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withStatus(org.springframework.http.HttpStatus.CREATED));
+
+        assertThatThrownBy(() -> client().resultHearing(HearingResultedFixtures.request()))
+                .isInstanceOfSatisfying(LibraCallException.class, e -> {
+                    assertThat(e.getLibraStatus()).isEqualTo(201);
+                    assertThat(e.getErrorCode()).isEqualTo(LibraCallException.INVALID_RESPONSE);
+                });
+    }
+
+    // Welsh text survives a reply without a JSON content type (which would otherwise be read as ISO-8859-1)
+    @Test
+    void reply_should_be_read_as_utf8_whatever_its_content_type() {
+        final String body = HearingResultedFixtures.responseJson().replace("\"accountBalance\": 125.5",
+                "\"accountBalance\": 125.5, \"accountNumber\": \"Llŷr-Ŵ\"");
+        server.expect(requestTo(BASE_URL + "/hearingResulted"))
+                .andRespond(withSuccess(body.getBytes(java.nio.charset.StandardCharsets.UTF_8), MediaType.TEXT_PLAIN));
+
+        assertThat(client().resultHearing(HearingResultedFixtures.request()).getNowsDataItems().getAccountNumber()).isEqualTo("Llŷr-Ŵ");
     }
 }

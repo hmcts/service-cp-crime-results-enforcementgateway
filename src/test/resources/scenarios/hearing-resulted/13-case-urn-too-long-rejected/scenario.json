@@ -1,0 +1,13 @@
+{
+  "description": "caseUrn longer than 36: 400 INVALID_PAYLOAD, APIM never called (it is never truncated, constitution VI)",
+  "request": {
+    "set": {
+      "/caseUrn": "E0123456789012345678901234567890123456"
+    }
+  },
+  "expected": {
+    "status": 400,
+    "apimCalls": 0,
+    "error": "INVALID_PAYLOAD"
+  }
+}

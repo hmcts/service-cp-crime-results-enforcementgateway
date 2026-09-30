@@ -1,0 +1,17 @@
+{
+  "description": "APIM answers 302: redirects are not followed, 502 with libraStatus 302",
+  "apim": {
+    "status": 302,
+    "headers": {
+      "Location": "http://localhost:1/elsewhere"
+    }
+  },
+  "expected": {
+    "status": 502,
+    "apimCalls": 1,
+    "error": "LIBRA_CALL_FAILED",
+    "details": {
+      "libraStatus": 302
+    }
+  }
+}

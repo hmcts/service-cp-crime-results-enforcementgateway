@@ -1,0 +1,43 @@
+{
+  "description": "A multi-day hearing: the earliest sitting day is used, whatever the array order",
+  "event": {
+    "confirmedHearing": {
+      "courtCentre": {
+        "code": "B01LY00"
+      },
+      "hearingDays": [
+        {
+          "sittingDay": "2026-07-17T09:00:00.000Z"
+        },
+        {
+          "sittingDay": "2026-07-15T13:00:00.000Z"
+        },
+        {
+          "sittingDay": "2026-07-16T09:00:00.000Z"
+        }
+      ],
+      "prosecutionCases": [
+        {
+          "id": "5b1f6c1e-1111-4a2b-9c3d-000000000001"
+        }
+      ]
+    },
+    "sendNotificationToParties": true
+  },
+  "progression": {
+    "5b1f6c1e-1111-4a2b-9c3d-000000000001": {
+      "ouCode": "GAPGD00",
+      "caseUrn": "12GD3456789"
+    }
+  },
+  "expected": {
+    "callbacks": [
+      {
+        "caseUrn": "12GD3456789",
+        "courtHearingLocation": "B01LY00",
+        "dateOfHearing": "2026-07-15",
+        "timeOfHearing": "14:00"
+      }
+    ]
+  }
+}

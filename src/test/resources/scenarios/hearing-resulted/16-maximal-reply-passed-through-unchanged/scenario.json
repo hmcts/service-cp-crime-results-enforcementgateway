@@ -1,0 +1,162 @@
+{
+  "description": "A reply using every NowsDataItems property (nested arrays, Welsh text and £ signs, decimals, integers, the DoB and cymraeg_/english_ names) is returned exactly as Libra sent it: a mis-mapped or dropped property fails here, because unknown properties are otherwise silently tolerated",
+  "apim": {
+    "status": 200,
+    "body": {
+      "caseUrn": "E012345678",
+      "timestamp": "2026-05-03T14:30:00Z",
+      "correlationId": "9f3d2e42-8d30-4d16-9dd6-6d4e26889d5c",
+      "nowsDataItems": {
+        "defendant": {
+          "defName": "Test Debtor",
+          "defAddress": {
+            "defAddressLine1": "2 Test Road",
+            "defAddressLine2": "Testville",
+            "defAddressLine3": "Testshire",
+            "defPostcode": "TE1 1ST"
+          },
+          "nationalInsuranceNumber": "QQ123456C",
+          "DoB": "01 Jan 1990",
+          "homeTelNo": "01000000001",
+          "businessTelNo": "01000000002",
+          "mobileTelNo": "07000000003",
+          "email1": "debtor1@example.test",
+          "email2": "debtor2@example.test",
+          "assetVehicleReg": "TE51 TST",
+          "assetVehicleMake": "Testmake",
+          "alias1": "Alias One",
+          "alias2": "Alias Two",
+          "alias3": "Alias Three",
+          "alias4": "Alias Four",
+          "alias5": "Alias Five",
+          "accountNotes": {
+            "accountNote1": "Note one",
+            "accountNote2": "Note two",
+            "accountNote3": "Note three"
+          },
+          "imposingCourt": {
+            "ljaCode": 2577,
+            "courtName": "Llys Ynadon Caerdydd"
+          },
+          "parentGuardian": {
+            "parentToPayFlag": "N",
+            "parentGuardianName": "Test Guardian",
+            "parentGuardianAddress": {
+              "parentGuardianAddressLine1": "3 Test Lane",
+              "parentGuardianAddressLine2": "Testville",
+              "parentGuardianAddressLine3": "Testshire"
+            }
+          },
+          "daysInDefault": 14
+        },
+        "paymentHistory": {
+          "payment": [
+            {
+              "paymentDate": "01 Apr 2026",
+              "paymentEventCode": "PAY",
+              "paymentType": "CARD",
+              "paymentAmount": 20.5,
+              "creditOrDebit": "CR"
+            },
+            {
+              "paymentDate": "15 Apr 2026",
+              "paymentEventCode": "REV",
+              "paymentType": "CARD",
+              "paymentAmount": 5.0,
+              "creditOrDebit": "DR"
+            }
+          ]
+        },
+        "transactionHistory": {
+          "transaction": [
+            {
+              "accountDate": "01 Apr 2026",
+              "accountEventCode": "ADJ",
+              "accountEventDetails": "Adjustment"
+            }
+          ]
+        },
+        "offences": {
+          "offence": [
+            {
+              "dateImposed": "03 May 2026",
+              "caseNumber": "E012345678",
+              "offenceCode": "TV90001",
+              "offenceTitle": "Use a television set without a licence",
+              "cymraeg_offenceTitle": "Defnyddio set deledu heb drwydded",
+              "ticketNumber": "TKT0001",
+              "centralTicketOfficeName": "Central Ticket Office",
+              "vehicleReg": "TE51 TST",
+              "timeOfOffence": "10:15",
+              "placeOfOffence": "Caerdydd",
+              "noticeToOwnerNoticeToHirer": "N",
+              "dateIssued": "04 May 2026",
+              "licenceNo": "TESTL123456AB9CD",
+              "impositions": {
+                "imposition": [
+                  {
+                    "impositionCode": "FO",
+                    "impositionType": "Fine",
+                    "impositionText": "Fine",
+                    "cymraeg_impositionText": "Dirwy",
+                    "amountImposed": 200.0,
+                    "amountPaid": 25.5,
+                    "impositionBalance": 174.5,
+                    "creditor": {
+                      "creditorName": "Test Creditor",
+                      "creditorAddress": {
+                        "creditorAddressLine1": "4 Test Street",
+                        "creditorAddressLine2": "Testville",
+                        "creditorAddressLine3": "Testshire",
+                        "creditorAddressLine4": "TE2 2ST"
+                      },
+                      "creditorSortCode": 112233,
+                      "creditorBankAccountNumber": 12345678,
+                      "creditorBankAccountReference": "REF-0001"
+                    }
+                  }
+                ]
+              },
+              "offenceTotal": 200.0
+            }
+          ],
+          "accountTotal": 200.0,
+          "accountPaid": 25.5
+        },
+        "terms": {
+          "english_due": "Due now",
+          "english_instalment": "£10.00",
+          "english_lumpsum": "£50.00",
+          "english_instalmetPaymentPeriod": "weekly",
+          "english_firstDate": "10 May 2026",
+          "cymraeg_due": "Yn ddyledus nawr",
+          "cymraeg_instalment": "£10.00",
+          "cymraeg_lumpsum": "£50.00",
+          "cymraeg_instalmentPaymentPeriod": "yn wythnosol",
+          "cymraeg_firstDate": "10 Mai 2026"
+        },
+        "accountBalance": 174.5,
+        "accountWarrantNumber": "123/26/00001",
+        "warrantContactDetails": {
+          "warrantContactDetailsLine1": "Warrant Office",
+          "warrantContactDetailsLine2": "5 Test Street",
+          "warrantContactDetailsLine3": "Testville",
+          "warrantContactDetailsLine4": "Testshire",
+          "warrantContactDetailsLine5": "01000000009"
+        },
+        "accountBailAmount": 0.0,
+        "ctBankDetails": {
+          "ct_account_number": 87654321,
+          "ct_sort_code": 654321
+        },
+        "daysBeforeReleaseWarrant": 7,
+        "accountNumber": "26000123A",
+        "accountDateImposed": "03 May 2026"
+      }
+    }
+  },
+  "expected": {
+    "status": 200,
+    "apimCalls": 1
+  }
+}

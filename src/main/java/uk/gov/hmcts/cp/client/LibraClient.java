@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
@@ -35,7 +36,6 @@ import java.nio.charset.StandardCharsets;
 public class LibraClient {
 
     private static final String OCP_APIM_SUBSCRIPTION_KEY_HEADER = "Ocp-Apim-Subscription-Key";
-    private static final int HTTP_OK = 200;
 
     /**
      * Libra's schemas are {@code additionalProperties: false} and don't allow JSON nulls for absent
@@ -58,7 +58,11 @@ public class LibraClient {
         this.apimSubscriptionKey = apimSubscriptionKey;
     }
 
-    /** Returns true if APIM accepted the callback (200/202) for onward delivery to Libra, false otherwise - never throws. */
+    /**
+     * Returns true if APIM accepted the callback (any 2xx) for onward delivery to Libra, false otherwise; never
+     * throws. A 3xx is not followed and counts as a failure. Only the caseUrn and the HTTP status (or the
+     * exception class) are logged, never the error body, which can echo payload values (constitution IV).
+     */
     public boolean confirmHearing(final ConfirmedHearing confirmedHearing) {
         boolean accepted = false;
         try {
@@ -68,10 +72,17 @@ public class LibraClient {
                     .header(OCP_APIM_SUBSCRIPTION_KEY_HEADER, apimSubscriptionKey)
                     .body(confirmedHearing)
                     .retrieve()
+                    .onStatus(status -> !status.is2xxSuccessful(), (req, res) -> {
+                        throw new LibraCallException(res.getStatusCode().value(), null, null, null);
+                    })
                     .toBodilessEntity();
             accepted = true;
+        } catch (final LibraCallException e) {
+            log.error("Libra confirmedHearing callback (via APIM) failed for caseUrn {} with HTTP {}",
+                    confirmedHearing.caseUrn(), e.getLibraStatus());
         } catch (final RestClientException e) {
-            log.error("Libra confirmedHearing callback (via APIM) failed for caseUrn {}", confirmedHearing.caseUrn(), e);
+            log.error("Libra confirmedHearing callback (via APIM) failed for caseUrn {}: {}",
+                    confirmedHearing.caseUrn(), e.getClass().getSimpleName());
         }
         return accepted;
     }
@@ -87,7 +98,7 @@ public class LibraClient {
     public HearingResultedResponse resultHearing(final HearingResultedRequest request) {
         final String caseUrn = request.getCaseUrn();
         try {
-            final String responseBody = restClient.post()
+            final ResponseEntity<byte[]> reply = restClient.post()
                     .uri("/hearingResulted")
                     .contentType(MediaType.APPLICATION_JSON)
                     .accept(MediaType.APPLICATION_JSON)
@@ -98,9 +109,12 @@ public class LibraClient {
                     .onStatus(status -> !status.is2xxSuccessful(), (req, res) -> {
                         throw LibraCallException.fromResponse(res.getStatusCode().value(), readBody(res.getBody()));
                     })
-                    .body(String.class);
+                    // bytes, decoded as UTF-8 below: a String body would be ISO-8859-1 without a JSON content type
+                    .toEntity(byte[].class);
+            final String responseBody = reply.getBody() == null ? null : new String(reply.getBody(), StandardCharsets.UTF_8);
+            final HearingResultedResponse response = parseAcceptedResponse(responseBody, reply.getStatusCode().value(), caseUrn);
             log.info("Libra hearingResulted (via APIM) accepted for caseUrn {}", caseUrn);
-            return parseAcceptedResponse(responseBody, caseUrn);
+            return response;
         } catch (final LibraCallException e) {
             log.warn("Libra hearingResulted (via APIM) failed for caseUrn {} with HTTP {} ({})", caseUrn, e.getLibraStatus(), e.getErrorCode());
             throw e;
@@ -114,22 +128,31 @@ public class LibraClient {
     }
 
     /**
-     * Libra accepted (2xx) but the body is empty or not a HearingResultedResponse. This is reported as a
+     * Libra accepted (2xx) but the body is empty, not a HearingResultedResponse, or lacks one of its
+     * required fields. This is reported as a
      * failure with {@code libraStatus} = the 2xx and {@code errorCode} {@value LibraCallException#INVALID_RESPONSE},
      * so the caller can see that GOB accepted it. The parser message is not logged, because it can quote
      * response values.
      */
-    private static HearingResultedResponse parseAcceptedResponse(final String body, final String caseUrn) {
+    private static HearingResultedResponse parseAcceptedResponse(final String body, final int status, final String caseUrn) {
         if (body == null || body.isBlank()) {
-            throw LibraCallException.invalidResponse(HTTP_OK, "empty response body");
+            throw LibraCallException.invalidResponse(status, "empty response body");
         }
+        final HearingResultedResponse response;
         try {
-            return JSON.readValue(body, HearingResultedResponse.class);
+            response = JSON.readValue(body, HearingResultedResponse.class);
         } catch (final JacksonException | IllegalArgumentException e) {
             log.warn("Libra hearingResulted (via APIM) 2xx body for caseUrn {} is not a HearingResultedResponse: {}",
                     caseUrn, e.getClass().getSimpleName());
-            throw LibraCallException.invalidResponse(HTTP_OK, "response body is not a HearingResultedResponse");
+            throw LibraCallException.invalidResponse(status, "response body is not a HearingResultedResponse");
         }
+        // unknown fields are tolerated (see JSON), but the contract's required fields are not optional
+        if (response.getCaseUrn() == null || response.getTimestamp() == null || response.getNowsDataItems() == null) {
+            log.warn("Libra hearingResulted (via APIM) 2xx body for caseUrn {} lacks a required field (caseUrn, timestamp, nowsDataItems)",
+                    caseUrn);
+            throw LibraCallException.invalidResponse(status, "response body lacks a required HearingResultedResponse field");
+        }
+        return response;
     }
 
     private static String readBody(final InputStream body) {

@@ -1,6 +1,9 @@
 package uk.gov.hmcts.cp.client;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.client.MockRestServiceServer;
 import org.springframework.web.client.RestClient;
@@ -18,6 +21,7 @@ import static org.springframework.test.web.client.match.MockRestRequestMatchers.
 import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withStatus;
 
+@ExtendWith(OutputCaptureExtension.class)
 class LibraClientTest {
 
     private static final String BASE_URL = "http://libra.test";
@@ -50,5 +54,27 @@ class LibraClientTest {
         final boolean accepted = new LibraClient(builder, BASE_URL, APIM_SUBSCRIPTION_KEY).confirmHearing(CONFIRMED_HEARING);
 
         assertThat(accepted).isFalse();
+    }
+
+    // only a 2xx is accepted; the JDK client doesn't follow redirects, so a 3xx arrives here
+    @Test
+    void shouldReturnFalseForRedirect() {
+        final RestClient.Builder builder = RestClient.builder();
+        final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(BASE_URL + "/confirmedHearing")).andRespond(withStatus(org.springframework.http.HttpStatus.FOUND));
+
+        assertThat(new LibraClient(builder, BASE_URL, APIM_SUBSCRIPTION_KEY).confirmHearing(CONFIRMED_HEARING)).isFalse();
+    }
+
+    // constitution IV: an error body can echo payload values, so it must never be logged
+    @Test
+    void shouldNotLogTheErrorBody(final CapturedOutput output) {
+        final RestClient.Builder builder = RestClient.builder();
+        final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(BASE_URL + "/confirmedHearing")).andRespond(withStatus(org.springframework.http.HttpStatus.BAD_REQUEST)
+                .contentType(MediaType.APPLICATION_JSON).body("{\"errorDescription\":\"forename Edward is invalid\"}"));
+
+        assertThat(new LibraClient(builder, BASE_URL, APIM_SUBSCRIPTION_KEY).confirmHearing(CONFIRMED_HEARING)).isFalse();
+        assertThat(output.getAll()).contains("12GD3456789").contains("HTTP 400").doesNotContain("Edward");
     }
 }

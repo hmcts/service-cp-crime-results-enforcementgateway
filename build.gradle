@@ -32,10 +32,10 @@ configurations {
 // Sadly, dependabot does not track dependencies in the apply-from files
 dependencies {
   // Api spec: this service's own contract (generated EnforcementHearingApi + HearingResulted models).
-  // Draft published from api-cp-crime-results-enforcementgateway team/CCT-1222 (merge 7a13f17). Replace with a
+  // Draft published from api-cp-crime-results-enforcementgateway team/CCT-1222 (merge 1d55b54, PR #33). Replace with a
   // fixed X.Y.Z release before a release build: validateApiSpecVersions rejects draft versions.
-  implementation('uk.gov.hmcts.cp:api-cp-crime-results-enforcementgateway:0.0.0-7a13f17')
-  apiSpec('uk.gov.hmcts.cp:api-cp-crime-results-enforcementgateway:0.0.0-7a13f17')
+  implementation('uk.gov.hmcts.cp:api-cp-crime-results-enforcementgateway:0.0.0-1d55b54')
+  apiSpec('uk.gov.hmcts.cp:api-cp-crime-results-enforcementgateway:0.0.0-1d55b54')
   // Generated models carry @Schema annotations; needed on the compile classpath (-Werror), as in service-cp-crime-results-pcr
   implementation 'io.swagger.core.v3:swagger-annotations:2.2.55'
 
@@ -55,6 +55,8 @@ dependencies {
   // Validates responses against this service's own contract in the API jar (workflow research.md R25)
   testImplementation 'com.networknt:json-schema-validator:1.5.9'
   testImplementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-yaml'
+  // Embedded Artemis broker: JMS end-to-end integration tests with the real listeners (workflow research.md R25)
+  testImplementation 'org.apache.artemis:artemis-jakarta-server'
   testImplementation('org.springframework.boot:spring-boot-starter-test') {
     exclude group: 'junit', module: 'junit'
     exclude group: 'org.junit.vintage', module: 'junit-vintage-engine'

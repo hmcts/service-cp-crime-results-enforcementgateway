@@ -15,6 +15,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
+import java.util.UUID;
 
 /**
  * Turns a {@code hearing-confirmed}/{@code hearing-updated} event into zero or more Libra
@@ -58,13 +59,24 @@ public class EnforcementHearingConfirmationService {
             try {
                 prosecutionCaseClient.findByCaseId(prosecutionCase.id())
                         .filter(this::isEnforcement)
+                        .filter(details -> hasCaseUrn(details, prosecutionCase.id()))
                         .ifPresent(details -> libraClient.confirmHearing(
                                 toConfirmedHearing(details, courtHearingLocation, sittingDay.get())));
                 // deliberately broad: a lookup/POST failure for one case must not stop the others in the same event
             } catch (@SuppressWarnings("PMD.AvoidCatchingGenericException") final RuntimeException e) {
-                log.error("Failed to process confirmedHearing callback for case {}", prosecutionCase.id(), e);
+                // class name only: an exception message can quote payload values (constitution IV)
+                log.error("Failed to process confirmedHearing callback for case {}: {}", prosecutionCase.id(), e.getClass().getSimpleName());
             }
         }
+    }
+
+    /** caseUrn is required by the contract: an enforcement case without one is skipped, never sent as null. */
+    private static boolean hasCaseUrn(final ProsecutionCaseDetails details, final UUID caseId) {
+        final boolean present = details.caseUrn() != null && !details.caseUrn().isBlank();
+        if (!present) {
+            log.warn("Enforcement case {} has no caseURN in Progression: no confirmedHearing callback", caseId);
+        }
+        return present;
     }
 
     private boolean isEnforcement(final ProsecutionCaseDetails details) {

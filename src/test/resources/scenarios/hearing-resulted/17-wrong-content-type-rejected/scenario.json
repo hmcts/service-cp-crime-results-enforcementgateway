@@ -1,0 +1,10 @@
+{
+  "description": "A request that isn't application/json: 415 with no body, APIM never called (contract: 415)",
+  "request": {
+    "contentType": "text/plain"
+  },
+  "expected": {
+    "status": 415,
+    "apimCalls": 0
+  }
+}

@@ -2,9 +2,13 @@
 
 
 # Example Tests
-See JunitLoggingTest.java
-See SpringLoggingIntegrationTest.java
-These tests illustrates the fields that we add to our logging 
+See JunitLoggingTest.java, which illustrates the fields we add to our logging.
+(`SpringLoggingIntegrationTest` and `TracingFilter`, mentioned below, are examples from the HMCTS
+template and are not part of this service.)
+
+# Personal data
+Never log payloads, upstream error bodies or exception messages that can quote them (constitution IV).
+Log identifiers (`caseUrn`, case ids, JMS message ids), HTTP statuses and exception class names only.
 
 
 # Using logback.xml

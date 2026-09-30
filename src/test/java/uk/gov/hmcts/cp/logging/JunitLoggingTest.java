@@ -19,9 +19,16 @@ class JunitLoggingTest {
 
     @Test
     void junit_should_log_correct_fields() throws JacksonException {
+        final PrintStream originalStdOut = System.out;
         MDC.put("traceId", "1234-1234");
         final ByteArrayOutputStream capturedStdOut = captureStdOut();
-        log.info("junit test message");
+        try {
+            log.info("junit test message");
+        } finally {
+            // restore, so later tests' log output isn't swallowed by this buffer
+            System.setOut(originalStdOut);
+            MDC.remove("traceId");
+        }
 
         final Map<String, Object> capturedFields = new ObjectMapper().readValue(capturedStdOut.toString(StandardCharsets.UTF_8), new TypeReference<>() {
         });

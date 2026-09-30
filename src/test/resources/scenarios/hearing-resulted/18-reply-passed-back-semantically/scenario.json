@@ -1,0 +1,35 @@
+{
+  "description": "The reply is passed back semantically, not byte for byte (contract, research.md open items 16/17): a field the contract doesn't know is dropped, and an offset timestamp is normalised to UTC",
+  "apim": {
+    "status": 200,
+    "body": {
+      "caseUrn": "E012345678",
+      "timestamp": "2026-05-03T15:30:00+01:00",
+      "correlationId": "9f3d2e42-8d30-4d16-9dd6-6d4e26889d5c",
+      "nowsDataItems": {
+        "accountBalance": 125.5,
+        "ctBankDetails": {
+          "ct_account_number": 10246456,
+          "ct_sort_code": 148941
+        }
+      },
+      "futureField": "not in v0.4.0"
+    }
+  },
+  "expected": {
+    "status": 200,
+    "apimCalls": 1,
+    "response": {
+      "caseUrn": "E012345678",
+      "timestamp": "2026-05-03T14:30:00Z",
+      "correlationId": "9f3d2e42-8d30-4d16-9dd6-6d4e26889d5c",
+      "nowsDataItems": {
+        "accountBalance": 125.5,
+        "ctBankDetails": {
+          "ct_account_number": 10246456,
+          "ct_sort_code": 148941
+        }
+      }
+    }
+  }
+}
