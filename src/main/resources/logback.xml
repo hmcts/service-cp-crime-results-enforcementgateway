@@ -12,6 +12,8 @@
                 <loggerName/>
                 <threadName/>
                 <logLevel/>
+                <!-- Structured arguments (e.g. the /hearingResulted request/response metadata) as top-level JSON fields -->
+                <arguments/>
                 <pattern>
                     <pattern>{"exception": "%xException{full}"}</pattern>
                 </pattern>
