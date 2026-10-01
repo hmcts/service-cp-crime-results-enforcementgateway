@@ -58,7 +58,7 @@ public class EnforcementHearingConfirmationService {
         for (final ConfirmedHearingEvent.ConfirmedProsecutionCase prosecutionCase : safeCases(event)) {
             try {
                 prosecutionCaseClient.findByCaseId(prosecutionCase.id())
-                        .filter(this::isEnforcement)
+                        .filter(details -> isEnforcement(details, prosecutionCase.id()))
                         .filter(details -> hasCaseUrn(details, prosecutionCase.id()))
                         .ifPresent(details -> libraClient.confirmHearing(
                                 toConfirmedHearing(details, courtHearingLocation, sittingDay.get())));
@@ -79,8 +79,12 @@ public class EnforcementHearingConfirmationService {
         return present;
     }
 
-    private boolean isEnforcement(final ProsecutionCaseDetails details) {
-        return enforcementAuthorityCode.equals(details.prosecutionAuthorityOUCode());
+    private boolean isEnforcement(final ProsecutionCaseDetails details, final UUID caseId) {
+        final boolean enforcement = enforcementAuthorityCode.equals(details.prosecutionAuthorityOUCode());
+        if (!enforcement) {
+            log.info("Case {} is not an enforcement case: no confirmedHearing callback", caseId);
+        }
+        return enforcement;
     }
 
     private static ConfirmedHearing toConfirmedHearing(final ProsecutionCaseDetails details,

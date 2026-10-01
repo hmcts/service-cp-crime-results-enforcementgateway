@@ -77,4 +77,16 @@ class LibraClientTest {
         assertThat(new LibraClient(builder, BASE_URL, APIM_SUBSCRIPTION_KEY).confirmHearing(CONFIRMED_HEARING)).isFalse();
         assertThat(output.getAll()).contains("12GD3456789").contains("HTTP 400").doesNotContain("Edward");
     }
+
+    // QA can see that APIM accepted the callback: the caseUrn only
+    @Test
+    void shouldLogTheCaseUrnWhenApimAccepts(final CapturedOutput output) {
+        final RestClient.Builder builder = RestClient.builder();
+        final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(BASE_URL + "/confirmedHearing")).andRespond(withStatus(ACCEPTED));
+
+        assertThat(new LibraClient(builder, BASE_URL, APIM_SUBSCRIPTION_KEY).confirmHearing(CONFIRMED_HEARING)).isTrue();
+        assertThat(output.getAll()).contains("Libra confirmedHearing callback (via APIM) accepted for caseUrn 12GD3456789 (HTTP 202)")
+                .doesNotContain("B01LY", "2026-07-15");
+    }
 }

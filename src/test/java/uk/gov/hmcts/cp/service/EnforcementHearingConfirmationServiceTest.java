@@ -5,6 +5,8 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import uk.gov.hmcts.cp.client.LibraClient;
 import uk.gov.hmcts.cp.client.ProsecutionCaseClient;
 import uk.gov.hmcts.cp.client.ProsecutionCaseDetails;
@@ -16,6 +18,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
@@ -23,7 +26,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class EnforcementHearingConfirmationServiceTest {
 
     private static final String ENFORCEMENT_AUTHORITY_CODE = "GAPGD00";
@@ -157,5 +160,17 @@ class EnforcementHearingConfirmationServiceTest {
         service.processConfirmedHearing(eventWithCases(caseId));
 
         verifyNoInteractions(libraClient);
+    }
+
+    // QA can see why no callback was sent: the case id only
+    @Test
+    void shouldLogWhenACaseIsNotAnEnforcementCase(final CapturedOutput output) {
+        final UUID caseId = UUID.randomUUID();
+        when(prosecutionCaseClient.findByCaseId(caseId)).thenReturn(Optional.of(new ProsecutionCaseDetails("CPS-EM", "99AB1234567")));
+
+        service.processConfirmedHearing(eventWithCases(caseId));
+
+        assertThat(output.getAll()).contains("Case " + caseId + " is not an enforcement case: no confirmedHearing callback")
+                .doesNotContain("99AB1234567");
     }
 }
