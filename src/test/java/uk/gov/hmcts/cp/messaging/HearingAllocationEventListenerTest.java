@@ -6,17 +6,20 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import tools.jackson.databind.ObjectMapper;
 import uk.gov.hmcts.cp.event.ConfirmedHearingEvent;
 import uk.gov.hmcts.cp.service.EnforcementHearingConfirmationService;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-@ExtendWith(MockitoExtension.class)
+@ExtendWith({MockitoExtension.class, OutputCaptureExtension.class})
 class HearingAllocationEventListenerTest {
 
     private static final String INNER_HEARING_JSON =
@@ -85,5 +88,30 @@ class HearingAllocationEventListenerTest {
         final HearingAllocationEventListener listener = new HearingAllocationEventListener(objectMapper, confirmationService);
 
         assertThatCode(() -> listener.onHearingAllocationEvent(message)).doesNotThrowAnyException();
+    }
+
+    // QA can see that the event arrived: name and JMS message id only, never the body
+    @Test
+    void shouldLogEveryReceivedEventByNameAndMessageId(final CapturedOutput output) throws JMSException {
+        when(message.getStringProperty("CPPNAME")).thenReturn("public.listing.hearing-confirmed");
+        when(message.getJMSMessageID()).thenReturn("ID:it-1");
+        when(message.getBody(String.class)).thenReturn(CONFIRMED_HEARING_JSON);
+
+        new HearingAllocationEventListener(objectMapper, confirmationService).onHearingAllocationEvent(message);
+
+        assertThat(output.getAll()).contains("Hearing allocation event received: name=public.listing.hearing-confirmed, jmsMessageId=ID:it-1")
+                .doesNotContain("B01LY", "5b1f6c1e-1111-4a2b-9c3d-000000000001");
+    }
+
+    @Test
+    void shouldLogAtInfoWhenAnUpdateDoesNotChangeTheAllocation(final CapturedOutput output) throws JMSException {
+        when(message.getStringProperty("CPPNAME")).thenReturn("public.listing.hearing-updated");
+        when(message.getJMSMessageID()).thenReturn("ID:it-2");
+        when(message.getBody(String.class)).thenReturn(UPDATED_HEARING_NO_ALLOCATION_CHANGE_JSON);
+
+        new HearingAllocationEventListener(objectMapper, confirmationService).onHearingAllocationEvent(message);
+
+        assertThat(output.getAll()).contains("\"level\":\"INFO\"")
+                .contains("Skipping public.listing.hearing-updated event - allocation fields unchanged (jmsMessageId=ID:it-2)");
     }
 }

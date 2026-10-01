@@ -66,7 +66,7 @@ public class LibraClient {
     public boolean confirmHearing(final ConfirmedHearing confirmedHearing) {
         boolean accepted = false;
         try {
-            restClient.post()
+            final ResponseEntity<Void> reply = restClient.post()
                     .uri("/confirmedHearing")
                     .contentType(MediaType.APPLICATION_JSON)
                     .header(OCP_APIM_SUBSCRIPTION_KEY_HEADER, apimSubscriptionKey)
@@ -77,6 +77,8 @@ public class LibraClient {
                     })
                     .toBodilessEntity();
             accepted = true;
+            log.info("Libra confirmedHearing callback (via APIM) accepted for caseUrn {} (HTTP {})",
+                    confirmedHearing.caseUrn(), reply.getStatusCode().value());
         } catch (final LibraCallException e) {
             log.error("Libra confirmedHearing callback (via APIM) failed for caseUrn {} with HTTP {}",
                     confirmedHearing.caseUrn(), e.getLibraStatus());

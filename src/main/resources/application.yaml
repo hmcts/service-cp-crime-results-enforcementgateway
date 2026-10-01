@@ -25,6 +25,13 @@ azure:
     instrumentation-key: ${rpe.AppInsightsInstrumentationKey:00000000-0000-0000-0000-000000000000}
 
 management:
+  otlp:
+    metrics:
+      export:
+        # No OTLP collector runs in our environments: the default push to localhost:4318 only logged
+        # "Failed to publish metrics to OTLP receiver" every minute. Metrics are scraped from
+        # /actuator/prometheus. Same setting as service-cp-crime-results-pcr; set the variable to push.
+        enabled: ${OTLP_METRICS_EXPORT_ENABLED:false}
   endpoints:
     web:
       base-path: /actuator

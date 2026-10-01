@@ -54,6 +54,8 @@ public class HearingAllocationEventListener {
             containerFactory = HearingAllocationJmsConfig.CONTAINER_FACTORY)
     public void onHearingAllocationEvent(final Message message) throws JMSException {
         final String eventName = message.getStringProperty("CPPNAME");
+        // name and message id only: the body carries case and hearing data
+        log.info("Hearing allocation event received: name={}, jmsMessageId={}", eventName, message.getJMSMessageID());
         try {
             final JsonNode root = objectMapper.readTree(message.getBody(String.class));
             if (root.has(CONFIRMED_HEARING_KEY)) {
@@ -62,7 +64,7 @@ public class HearingAllocationEventListener {
                 if (root.path(ALLOCATION_FIELD_UPDATED_KEY).asBoolean(true)) {
                     processHearingNode(root.get(UPDATED_HEARING_KEY));
                 } else {
-                    log.debug("Skipping {} event - allocation fields unchanged (jmsMessageId={})", eventName, message.getJMSMessageID());
+                    log.info("Skipping {} event - allocation fields unchanged (jmsMessageId={})", eventName, message.getJMSMessageID());
                 }
             } else {
                 log.warn("{} event had neither '{}' nor '{}' key (jmsMessageId={})", eventName, CONFIRMED_HEARING_KEY, UPDATED_HEARING_KEY, message.getJMSMessageID());

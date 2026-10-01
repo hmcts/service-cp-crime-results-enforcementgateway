@@ -48,7 +48,7 @@ class JmsListenersIntegrationTest extends GatewayIntegrationTestBase {
     }
 
     @Test
-    void hearingConfirmedForAnEnforcementCaseShouldSendOneCallback() {
+    void hearingConfirmedForAnEnforcementCaseShouldSendOneCallback(final CapturedOutput output) {
         stubProgressionCase(CASE_ID, ENFORCEMENT_OU_CODE, "12GD3456789");
         STUBS.stubFor(post(urlEqualTo(CONFIRMED_HEARING_PATH)).withHeader("Ocp-Apim-Subscription-Key", equalTo(SUBSCRIPTION_KEY))
                 .willReturn(aResponse().withStatus(200)));
@@ -58,6 +58,11 @@ class JmsListenersIntegrationTest extends GatewayIntegrationTestBase {
 
         assertThat(confirmedHearingCallbacks()).singleElement().satisfies(callback ->
                 assertThat(equalToJson(EXPECTED_CALLBACK).match(callback.getBodyAsString()).isExactMatch()).isTrue());
+        // what QA looks for: the event arrived, and APIM accepted the callback; never the event's data
+        assertThat(output.getAll())
+                .contains("Hearing allocation event received: name=" + HEARING_CONFIRMED)
+                .contains("Libra confirmedHearing callback (via APIM) accepted for caseUrn 12GD3456789 (HTTP 200)")
+                .doesNotContain("\"sittingDay\"", "B01LY00\"");
     }
 
     @Test
