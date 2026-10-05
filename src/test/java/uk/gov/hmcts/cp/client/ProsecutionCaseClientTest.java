@@ -69,6 +69,25 @@ class ProsecutionCaseClientTest {
                 .andRespond(withStatus(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body("defendant Edward Harrison"));
 
         assertThat(new ProsecutionCaseClient(builder, BASE_URL, CJSCPPUID).findByCaseId(caseId)).isEmpty();
-        assertThat(output.getAll()).contains(caseId.toString()).contains("HTTP 500").doesNotContain("Edward");
+        assertThat(output.getAll()).contains(caseId.toString()).contains("HTTP 500").doesNotContain("Edward")
+                .contains("at uk.gov.hmcts.cp.client.ProsecutionCaseClient.findByCaseId");
+    }
+
+    @Test
+    void failedLookupWithoutHttpResponseShouldLogUrlAndRootCause(final CapturedOutput output) {
+        final RestClient.Builder builder = RestClient.builder();
+        final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        final UUID caseId = UUID.randomUUID();
+        server.expect(requestTo(BASE_URL + "/prosecutioncases/" + caseId))
+                .andRespond(request -> {
+                    throw new java.net.ConnectException("Connection refused");
+                });
+
+        assertThat(new ProsecutionCaseClient(builder, BASE_URL, CJSCPPUID).findByCaseId(caseId)).isEmpty();
+        assertThat(output.getAll())
+                .contains("url=" + BASE_URL + "/prosecutioncases/" + caseId)
+                .contains("ResourceAccessException")
+                .contains("rootCause=java.net.ConnectException: Connection refused")
+                .contains("at uk.gov.hmcts.cp.client.ProsecutionCaseClient.findByCaseId");
     }
 }
