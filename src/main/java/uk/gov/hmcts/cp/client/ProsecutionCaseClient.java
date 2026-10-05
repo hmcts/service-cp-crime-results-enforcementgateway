@@ -29,12 +29,14 @@ public class ProsecutionCaseClient {
 
     private final RestClient restClient;
     private final String cjscppuid;
+    private final String baseUrl;
 
     public ProsecutionCaseClient(@Qualifier("restClientBuilder") final RestClient.Builder restClientBuilder,
                                   @Value("${cp.progression.query-api.base-url}") final String baseUrl,
                                   @Value("${cp.progression.query-api.cjscppuid}") final String cjscppuid) {
         this.restClient = restClientBuilder.baseUrl(baseUrl).build();
         this.cjscppuid = cjscppuid;
+        this.baseUrl = baseUrl;
     }
 
     /**
@@ -55,12 +57,41 @@ public class ProsecutionCaseClient {
                     .map(ProsecutionCase::prosecutionCaseIdentifier)
                     .map(identifier -> new ProsecutionCaseDetails(identifier.prosecutionAuthorityOUCode(), identifier.caseUrn()));
         } catch (final RestClientResponseException e) {
-            // status only: the error body can echo case data (constitution IV)
-            log.error("Failed to look up prosecution case {} from Progression: HTTP {}", caseId, e.getStatusCode().value());
+            // status only: the error body can echo case data (constitution IV) - and so can e.getMessage(),
+            // which is why the exception itself isn't passed to the logger here
+            // TEMP DIAGNOSTICS: url, status text, content type and a body-free stack trace added to help
+            // diagnose Progression lookup failures
+            log.error("Failed to look up prosecution case {} from Progression: HTTP {} {} (url={}/prosecutioncases/{}, contentType={})",
+                    caseId, e.getStatusCode().value(), e.getStatusText(), baseUrl, caseId,
+                    e.getResponseHeaders() == null ? null : e.getResponseHeaders().getContentType(),
+                    withoutResponseBody(e));
         } catch (final RestClientException e) {
-            log.error("Failed to look up prosecution case {} from Progression: {}", caseId, e.getClass().getSimpleName());
+            // TEMP DIAGNOSTICS: no HTTP response was received or it couldn't be read (connection refused, timeout,
+            // DNS/TLS failure, unexpected content type, JSON mapping error...) - log the url, message and root
+            // cause plus the stack trace so the actual failure is visible
+            final Throwable rootCause = rootCauseOf(e);
+            log.error("Failed to look up prosecution case {} from Progression: {} - {} (url={}/prosecutioncases/{}, rootCause={}: {})",
+                    caseId, e.getClass().getSimpleName(), e.getMessage(), baseUrl, caseId,
+                    rootCause.getClass().getName(), rootCause.getMessage(), e);
         }
         return result;
+    }
+
+    // TEMP DIAGNOSTICS: same stack trace as the original, but a message carrying only the status - the original
+    // message (and so its "Caused by" chain) embeds the response body
+    private static Throwable withoutResponseBody(final RestClientResponseException e) {
+        final RuntimeException safeCopy = new RuntimeException(
+                e.getClass().getName() + ": HTTP " + e.getStatusCode().value() + " " + e.getStatusText());
+        safeCopy.setStackTrace(e.getStackTrace());
+        return safeCopy;
+    }
+
+    private static Throwable rootCauseOf(final Throwable throwable) {
+        Throwable cause = throwable;
+        while (cause.getCause() != null && cause.getCause() != cause) {
+            cause = cause.getCause();
+        }
+        return cause;
     }
 
     // Progression's progression.query.case response wraps the case under a "prosecutionCase" key
