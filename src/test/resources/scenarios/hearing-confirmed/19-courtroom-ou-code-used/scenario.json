@@ -1,0 +1,48 @@
+{
+  "description": "CIMD-3701 defect: hearing allocated to Courtroom 01 at Lavender Hill (B01LY00) - courtHearingLocation is the courtroom's OU code from Reference Data (B01LY01), as in the STE defect",
+  "event": {
+    "confirmedHearing": {
+      "courtCentre": {
+        "id": "f8254db1-1683-483e-afb3-b87fde5a0a26",
+        "code": "B01LY00",
+        "name": "Lavender Hill Magistrates' Court",
+        "roomId": "9e4932f7-97b2-3010-b942-ddd2624e4dd8",
+        "roomName": "Courtroom 01"
+      },
+      "hearingDays": [
+        {
+          "sittingDay": "2026-10-07T09:00:00.000Z"
+        }
+      ],
+      "prosecutionCases": [
+        {
+          "id": "5b1f6c1e-1111-4a2b-9c3d-000000000001"
+        }
+      ]
+    },
+    "sendNotificationToParties": true
+  },
+  "progression": {
+    "5b1f6c1e-1111-4a2b-9c3d-000000000001": {
+      "ouCode": "GAPGD00",
+      "caseUrn": "ENF90006126"
+    }
+  },
+  "referenceData": {
+    "9e4932f7-97b2-3010-b942-ddd2624e4dd8": {
+      "ouCourtRoomCodes": [
+        "B01LY01"
+      ]
+    }
+  },
+  "expected": {
+    "callbacks": [
+      {
+        "caseUrn": "ENF90006126",
+        "courtHearingLocation": "B01LY01",
+        "dateOfHearing": "2026-10-07",
+        "timeOfHearing": "10:00"
+      }
+    ]
+  }
+}

@@ -32,7 +32,7 @@ import static org.awaitility.Awaitility.await;
  * Both gateway flows end to end (workflow research.md R25): CP public events published on
  * {@code public.event} to an embedded, non-persistent Artemis broker and consumed by the real
  * listeners (the {@code docker} profile), and {@code POST /hearingResulted} through {@link MockMvc}.
- * One WireMock server stands in for both Azure APIM and the Progression query API.
+ * One WireMock server stands in for Azure APIM and the Progression and Reference Data query APIs.
  *
  * <p>Subclasses must not add their own properties or profiles: every class extending this one has to
  * share one Spring context, because a second cached context would start a second in-VM broker with
@@ -59,6 +59,7 @@ public abstract class GatewayIntegrationTestBase {
     protected static final WireMockServer STUBS = new WireMockServer(wireMockConfig().dynamicPort().http2PlainDisabled(true));
     protected static final String SUBSCRIPTION_KEY = "it-subscription-key";
     protected static final String PROGRESSION_PATH = "/progression-query-api/query/api/rest/progression";
+    protected static final String REFERENCEDATA_PATH = "/referencedata-query-api/query/api/rest/referencedata";
     protected static final String CONFIRMED_HEARING_PATH = "/confirmedHearing";
     protected static final String HEARING_RESULTED_PATH = "/hearingResulted";
     protected static final String HEARING_CONFIRMED = "public.listing.hearing-confirmed";
@@ -86,6 +87,7 @@ public abstract class GatewayIntegrationTestBase {
         registry.add("cp.libra.apim-base-url", STUBS::baseUrl);
         registry.add("cp.libra.apim-subscription-key", () -> SUBSCRIPTION_KEY);
         registry.add("cp.progression.query-api.base-url", () -> STUBS.baseUrl() + PROGRESSION_PATH);
+        registry.add("cp.referencedata.query-api.base-url", () -> STUBS.baseUrl() + REFERENCEDATA_PATH);
     }
 
     @AfterEach

@@ -16,8 +16,12 @@ import java.util.UUID;
 public record ConfirmedHearingEvent(CourtCentre courtCentre, List<HearingDay> hearingDays,
                                      List<ConfirmedProsecutionCase> prosecutionCases) {
 
+    /**
+     * {@code code} is the court centre's OU code (e.g. {@code B01LY00}); {@code roomId} is the
+     * allocated courtroom's reference data id, absent until the hearing is allocated to a room.
+     */
     @JsonIgnoreProperties(ignoreUnknown = true)
-    public record CourtCentre(String code) {
+    public record CourtCentre(String code, UUID roomId) {
     }
 
     @JsonIgnoreProperties(ignoreUnknown = true)

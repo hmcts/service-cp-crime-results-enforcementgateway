@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 import uk.gov.hmcts.cp.client.LibraClient;
 import uk.gov.hmcts.cp.client.ProsecutionCaseClient;
 import uk.gov.hmcts.cp.client.ProsecutionCaseDetails;
+import uk.gov.hmcts.cp.client.ReferenceDataClient;
 import uk.gov.hmcts.cp.dto.ConfirmedHearing;
 import uk.gov.hmcts.cp.event.ConfirmedHearingEvent;
 
@@ -16,6 +17,8 @@ import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
 
 /**
  * Turns a {@code hearing-confirmed}/{@code hearing-updated} event into zero or more Libra
@@ -32,13 +35,16 @@ public class EnforcementHearingConfirmationService {
 
     private final ProsecutionCaseClient prosecutionCaseClient;
     private final LibraClient libraClient;
+    private final ReferenceDataClient referenceDataClient;
     private final String enforcementAuthorityCode;
 
     public EnforcementHearingConfirmationService(final ProsecutionCaseClient prosecutionCaseClient,
                                                   final LibraClient libraClient,
+                                                  final ReferenceDataClient referenceDataClient,
                                                   @Value("${cp.enforcement.authority-code}") final String enforcementAuthorityCode) {
         this.prosecutionCaseClient = prosecutionCaseClient;
         this.libraClient = libraClient;
+        this.referenceDataClient = referenceDataClient;
         this.enforcementAuthorityCode = enforcementAuthorityCode;
     }
 
@@ -48,12 +54,14 @@ public class EnforcementHearingConfirmationService {
      */
     public void processConfirmedHearing(final ConfirmedHearingEvent event) {
         final Optional<ZonedDateTime> sittingDay = earliestSittingDay(event);
-        final String courtHearingLocation = event.courtCentre() != null ? event.courtCentre().code() : null;
+        final String courtCentreCode = event.courtCentre() != null ? event.courtCentre().code() : null;
 
-        if (sittingDay.isEmpty() || courtHearingLocation == null) {
+        if (sittingDay.isEmpty() || courtCentreCode == null) {
             log.warn("Ignoring confirmedHearing event with no sitting day / court centre code - nothing to confirm");
             return;
         }
+        // looked up once per event, and only if an enforcement case needs it - most hearings have none
+        final Supplier<String> courtHearingLocation = once(() -> courtHearingLocation(event.courtCentre()));
 
         for (final ConfirmedHearingEvent.ConfirmedProsecutionCase prosecutionCase : safeCases(event)) {
             try {
@@ -61,13 +69,40 @@ public class EnforcementHearingConfirmationService {
                         .filter(details -> isEnforcement(details, prosecutionCase.id()))
                         .filter(details -> hasCaseUrn(details, prosecutionCase.id()))
                         .ifPresent(details -> libraClient.confirmHearing(
-                                toConfirmedHearing(details, courtHearingLocation, sittingDay.get())));
+                                toConfirmedHearing(details, courtHearingLocation.get(), sittingDay.get())));
                 // deliberately broad: a lookup/POST failure for one case must not stop the others in the same event
             } catch (@SuppressWarnings("PMD.AvoidCatchingGenericException") final RuntimeException e) {
                 // class name only: an exception message can quote payload values (constitution IV)
                 log.error("Failed to process confirmedHearing callback for case {}: {}", prosecutionCase.id(), e.getClass().getSimpleName());
             }
         }
+    }
+
+    /**
+     * The allocated courtroom's OU code (e.g. {@code B01LY01}), falling back to the court centre's own
+     * OU code (e.g. {@code B01LY00}) when the hearing has no room yet or Reference Data has no mapping
+     * for it - the same rule as Progression's {@code transformCourtCentre} for this event.
+     */
+    private String courtHearingLocation(final ConfirmedHearingEvent.CourtCentre courtCentre) {
+        final String location;
+        if (courtCentre.roomId() == null) {
+            location = courtCentre.code();
+        } else {
+            final Optional<String> courtroomOuCode = referenceDataClient.findCourtroomOuCode(courtCentre.roomId());
+            location = courtroomOuCode.orElse(courtCentre.code());
+            if (courtroomOuCode.isPresent()) {
+                log.info("Courtroom {} resolved to courtHearingLocation {}", courtCentre.roomId(), location);
+            } else {
+                log.warn("No OU code for courtroom {}: courtHearingLocation falls back to the court centre code {}",
+                        courtCentre.roomId(), location);
+            }
+        }
+        return location;
+    }
+
+    private static <T> Supplier<T> once(final Supplier<T> supplier) {
+        final AtomicReference<T> value = new AtomicReference<>();
+        return () -> value.updateAndGet(current -> current != null ? current : supplier.get());
     }
 
     /** caseUrn is required by the contract: an enforcement case without one is skipped, never sent as null. */

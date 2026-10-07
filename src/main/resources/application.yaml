@@ -83,7 +83,18 @@ cp:
       # (2026-09-08): both service-cp-crime-results-pcr and service-cp-crime-results-nows use
       # this identical all-zeros placeholder too, with no real value set anywhere - confirms this
       # is the right config shape, just still waiting on a real value from whoever owns it.
-      cjscppuid: ${CJSCPPUID:00000000-0000-0000-0000-000000000000}
+      # Progression's own system user - configured separately per context, as the values may differ
+      cjscppuid: ${PROGRESSION_CJSCPPUID:00000000-0000-0000-0000-000000000000}
+  referencedata:
+    query-api:
+      # Resolves the allocated courtroom's OU code (e.g. B01LY01) for confirmedHearing's
+      # courtHearingLocation - the same police-opt-courtroom-mappings lookup Progression's
+      # transformCourtCentre does on this event. In an environment this is the stack's internal
+      # ingress, like PROGRESSION_QUERY_API_URL, e.g.
+      # http://steccm09-internal.ingress01.ste.nl.cjscp.org.uk/referencedata-query-api/query/api/rest/referencedata
+      base-url: ${REFERENCEDATA_QUERY_API_URL:http://localhost:8080/referencedata-query-api/query/api/rest/referencedata}
+      # Reference Data's own system user - deliberately not shared with Progression's (it may differ)
+      cjscppuid: ${REFERENCEDATA_CJSCPPUID:00000000-0000-0000-0000-000000000000}
   libra:
     # This service never calls Libra directly - it POSTs to Azure APIM, which forwards the
     # same confirmedHearing payload on to Libra. Named "apim-base-url", not just "base-url"
