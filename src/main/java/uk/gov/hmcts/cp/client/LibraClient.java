@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Component;
@@ -50,12 +51,14 @@ public class LibraClient {
 
     private final RestClient restClient;
     private final String apimSubscriptionKey;
+    private final String baseUrl;
 
     public LibraClient(@Qualifier("libraRestClientBuilder") final RestClient.Builder restClientBuilder,
                         @Value("${cp.libra.apim-base-url}") final String baseUrl,
                         @Value("${cp.libra.apim-subscription-key}") final String apimSubscriptionKey) {
         this.restClient = restClientBuilder.baseUrl(baseUrl).build();
         this.apimSubscriptionKey = apimSubscriptionKey;
+        this.baseUrl = baseUrl;
     }
 
     /**
@@ -65,6 +68,10 @@ public class LibraClient {
      */
     public boolean confirmHearing(final ConfirmedHearing confirmedHearing) {
         boolean accepted = false;
+        // TEMP DIAGNOSTICS: log the outbound payload so QA can check it - serialised with JSON, which may differ
+        // trivially (e.g. field order) from the RestClient's own message converter
+        log.info("Libra confirmedHearing callback (via APIM) request for caseUrn {}: url={}/confirmedHearing, payload={}",
+                confirmedHearing.caseUrn(), baseUrl, payloadOf(confirmedHearing));
         try {
             final ResponseEntity<Void> reply = restClient.post()
                     .uri("/confirmedHearing")
@@ -80,11 +87,16 @@ public class LibraClient {
             log.info("Libra confirmedHearing callback (via APIM) accepted for caseUrn {} (HTTP {})",
                     confirmedHearing.caseUrn(), reply.getStatusCode().value());
         } catch (final LibraCallException e) {
-            log.error("Libra confirmedHearing callback (via APIM) failed for caseUrn {} with HTTP {}",
-                    confirmedHearing.caseUrn(), e.getLibraStatus());
+            // TEMP DIAGNOSTICS: url and stack trace added - LibraCallException's message never carries the error body
+            log.error("Libra confirmedHearing callback (via APIM) failed for caseUrn {} with HTTP {} (url={}/confirmedHearing)",
+                    confirmedHearing.caseUrn(), e.getLibraStatus(), baseUrl, e);
         } catch (final RestClientException e) {
-            log.error("Libra confirmedHearing callback (via APIM) failed for caseUrn {}: {}",
-                    confirmedHearing.caseUrn(), e.getClass().getSimpleName());
+            // TEMP DIAGNOSTICS: no HTTP response was received or it couldn't be handled (connection refused, timeout,
+            // DNS/TLS failure...) - log the url, message and root cause plus the stack trace so the actual failure is visible
+            final Throwable rootCause = NestedExceptionUtils.getMostSpecificCause(e);
+            log.error("Libra confirmedHearing callback (via APIM) failed for caseUrn {}: {} - {} (url={}/confirmedHearing, rootCause={}: {})",
+                    confirmedHearing.caseUrn(), e.getClass().getSimpleName(), e.getMessage(), baseUrl,
+                    rootCause.getClass().getName(), rootCause.getMessage(), e);
         }
         return accepted;
     }
@@ -118,13 +130,23 @@ public class LibraClient {
             log.info("Libra hearingResulted (via APIM) accepted for caseUrn {}", caseUrn);
             return response;
         } catch (final LibraCallException e) {
-            log.warn("Libra hearingResulted (via APIM) failed for caseUrn {} with HTTP {} ({})", caseUrn, e.getLibraStatus(), e.getErrorCode());
+            // TEMP DIAGNOSTICS: url and stack trace added - LibraCallException's message never carries the error body
+            log.warn("Libra hearingResulted (via APIM) failed for caseUrn {} with HTTP {} ({}) (url={}/hearingResulted)",
+                    caseUrn, e.getLibraStatus(), e.getErrorCode(), baseUrl, e);
             throw e;
         } catch (final ResourceAccessException e) {
-            log.warn("Libra hearingResulted (via APIM) got no response for caseUrn {}: {}", caseUrn, e.getClass().getSimpleName());
+            // TEMP DIAGNOSTICS: url, message, root cause and stack trace added
+            final Throwable rootCause = NestedExceptionUtils.getMostSpecificCause(e);
+            log.warn("Libra hearingResulted (via APIM) got no response for caseUrn {}: {} - {} (url={}/hearingResulted, rootCause={}: {})",
+                    caseUrn, e.getClass().getSimpleName(), e.getMessage(), baseUrl,
+                    rootCause.getClass().getName(), rootCause.getMessage(), e);
             throw LibraCallException.noResponse(e);
         } catch (final RestClientException e) {
-            log.warn("Libra hearingResulted (via APIM) call failed for caseUrn {}: {}", caseUrn, e.getClass().getSimpleName());
+            // TEMP DIAGNOSTICS: url, message, root cause and stack trace added
+            final Throwable rootCause = NestedExceptionUtils.getMostSpecificCause(e);
+            log.warn("Libra hearingResulted (via APIM) call failed for caseUrn {}: {} - {} (url={}/hearingResulted, rootCause={}: {})",
+                    caseUrn, e.getClass().getSimpleName(), e.getMessage(), baseUrl,
+                    rootCause.getClass().getName(), rootCause.getMessage(), e);
             throw LibraCallException.noResponse(e);
         }
     }
@@ -155,6 +177,17 @@ public class LibraClient {
             throw LibraCallException.invalidResponse(status, "response body lacks a required HearingResultedResponse field");
         }
         return response;
+    }
+
+    // TEMP DIAGNOSTICS: payload logging only - must never stop the callback being sent
+    private static String payloadOf(final ConfirmedHearing confirmedHearing) {
+        String payload;
+        try {
+            payload = JSON.writeValueAsString(confirmedHearing);
+        } catch (final JacksonException e) {
+            payload = String.valueOf(confirmedHearing);
+        }
+        return payload;
     }
 
     private static String readBody(final InputStream body) {

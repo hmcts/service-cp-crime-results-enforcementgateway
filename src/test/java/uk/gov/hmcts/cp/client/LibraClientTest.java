@@ -78,7 +78,8 @@ class LibraClientTest {
         assertThat(output.getAll()).contains("12GD3456789").contains("HTTP 400").doesNotContain("Edward");
     }
 
-    // QA can see that APIM accepted the callback: the caseUrn only
+    // QA can see that APIM accepted the callback
+    // TEMP DIAGNOSTICS: the outbound payload is logged too - restore .doesNotContain("B01LY", "2026-07-15") on rollback
     @Test
     void shouldLogTheCaseUrnWhenApimAccepts(final CapturedOutput output) {
         final RestClient.Builder builder = RestClient.builder();
@@ -87,6 +88,24 @@ class LibraClientTest {
 
         assertThat(new LibraClient(builder, BASE_URL, APIM_SUBSCRIPTION_KEY).confirmHearing(CONFIRMED_HEARING)).isTrue();
         assertThat(output.getAll()).contains("Libra confirmedHearing callback (via APIM) accepted for caseUrn 12GD3456789 (HTTP 202)")
-                .doesNotContain("B01LY", "2026-07-15");
+                .contains("url=" + BASE_URL + "/confirmedHearing")
+                .contains("payload=").contains("B01LY", "2026-07-15");
+    }
+
+    // TEMP DIAGNOSTICS: a transport failure logs the url, the root cause and a stack trace
+    @Test
+    void failedCallbackWithoutHttpResponseShouldLogUrlAndRootCause(final CapturedOutput output) {
+        final RestClient.Builder builder = RestClient.builder();
+        final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
+        server.expect(requestTo(BASE_URL + "/confirmedHearing")).andRespond(request -> {
+            throw new java.net.ConnectException("Connection refused");
+        });
+
+        assertThat(new LibraClient(builder, BASE_URL, APIM_SUBSCRIPTION_KEY).confirmHearing(CONFIRMED_HEARING)).isFalse();
+        assertThat(output.getAll())
+                .contains("url=" + BASE_URL + "/confirmedHearing")
+                .contains("ResourceAccessException")
+                .contains("rootCause=java.net.ConnectException: Connection refused")
+                .contains("at uk.gov.hmcts.cp.client.LibraClient.confirmHearing");
     }
 }
