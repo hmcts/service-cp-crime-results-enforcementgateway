@@ -10,6 +10,7 @@ import org.springframework.boot.test.system.OutputCaptureExtension;
 import uk.gov.hmcts.cp.client.LibraClient;
 import uk.gov.hmcts.cp.client.ProsecutionCaseClient;
 import uk.gov.hmcts.cp.client.ProsecutionCaseDetails;
+import uk.gov.hmcts.cp.client.ReferenceDataClient;
 import uk.gov.hmcts.cp.dto.ConfirmedHearing;
 import uk.gov.hmcts.cp.event.ConfirmedHearingEvent;
 
@@ -22,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -38,12 +40,14 @@ class EnforcementHearingConfirmationServiceTest {
     private ProsecutionCaseClient prosecutionCaseClient;
     @Mock
     private LibraClient libraClient;
+    @Mock
+    private ReferenceDataClient referenceDataClient;
 
     private EnforcementHearingConfirmationService service;
 
     @BeforeEach
     void setUp() {
-        service = new EnforcementHearingConfirmationService(prosecutionCaseClient, libraClient, ENFORCEMENT_AUTHORITY_CODE);
+        service = new EnforcementHearingConfirmationService(prosecutionCaseClient, libraClient, referenceDataClient, ENFORCEMENT_AUTHORITY_CODE);
     }
 
     @Test
@@ -89,7 +93,7 @@ class EnforcementHearingConfirmationServiceTest {
     @Test
     void shouldNotLookUpAnyCaseWhenEventHasNoSittingDay() {
         final ConfirmedHearingEvent event = new ConfirmedHearingEvent(
-                new ConfirmedHearingEvent.CourtCentre("B01LY"), List.of(),
+                new ConfirmedHearingEvent.CourtCentre("B01LY", null), List.of(),
                 List.of(new ConfirmedHearingEvent.ConfirmedProsecutionCase(UUID.randomUUID())));
 
         service.processConfirmedHearing(event);
@@ -103,7 +107,7 @@ class EnforcementHearingConfirmationServiceTest {
         final ZonedDateTime laterDay = SITTING_DAY.plusDays(5);
         // deliberately out of order: the later day appears first in the array
         final ConfirmedHearingEvent event = new ConfirmedHearingEvent(
-                new ConfirmedHearingEvent.CourtCentre("B01LY"),
+                new ConfirmedHearingEvent.CourtCentre("B01LY", null),
                 List.of(new ConfirmedHearingEvent.HearingDay(laterDay), new ConfirmedHearingEvent.HearingDay(SITTING_DAY)),
                 List.of(new ConfirmedHearingEvent.ConfirmedProsecutionCase(caseId)));
         when(prosecutionCaseClient.findByCaseId(caseId))
@@ -120,7 +124,7 @@ class EnforcementHearingConfirmationServiceTest {
         // 2026-07-15 is within BST (UTC+1) - the real UK court local time is 10:00, not the raw UTC 09:00.
         final ZonedDateTime bstSittingDayUtc = ZonedDateTime.parse("2026-07-15T09:00:00Z");
         final ConfirmedHearingEvent event = new ConfirmedHearingEvent(
-                new ConfirmedHearingEvent.CourtCentre("B01LY"),
+                new ConfirmedHearingEvent.CourtCentre("B01LY", null),
                 List.of(new ConfirmedHearingEvent.HearingDay(bstSittingDayUtc)),
                 List.of(new ConfirmedHearingEvent.ConfirmedProsecutionCase(caseId)));
         when(prosecutionCaseClient.findByCaseId(caseId))
@@ -145,7 +149,7 @@ class EnforcementHearingConfirmationServiceTest {
 
     private static ConfirmedHearingEvent eventWithCases(final UUID... caseIds) {
         return new ConfirmedHearingEvent(
-                new ConfirmedHearingEvent.CourtCentre("B01LY"),
+                new ConfirmedHearingEvent.CourtCentre("B01LY", null),
                 List.of(new ConfirmedHearingEvent.HearingDay(SITTING_DAY)),
                 List.of(caseIds).stream().map(ConfirmedHearingEvent.ConfirmedProsecutionCase::new).toList());
     }
@@ -172,5 +176,81 @@ class EnforcementHearingConfirmationServiceTest {
 
         assertThat(output.getAll()).contains("Case " + caseId + " is not an enforcement case: no confirmedHearing callback")
                 .doesNotContain("99AB1234567");
+    }
+
+    // CIMD-3701 defect: Libra needs the courtroom's OU code (B01LY01), not the court centre's (B01LY00)
+    @Test
+    void shouldSendTheCourtroomOuCodeWhenTheHearingIsAllocatedToARoom() {
+        final UUID caseId = UUID.randomUUID();
+        final UUID roomId = UUID.randomUUID();
+        when(prosecutionCaseClient.findByCaseId(caseId))
+                .thenReturn(Optional.of(new ProsecutionCaseDetails(ENFORCEMENT_AUTHORITY_CODE, "12GD3456789")));
+        when(referenceDataClient.findCourtroomOuCode(roomId)).thenReturn(Optional.of("B01LY01"));
+
+        service.processConfirmedHearing(eventInRoom(roomId, caseId));
+
+        verify(libraClient).confirmHearing(new ConfirmedHearing("12GD3456789", "B01LY01", SITTING_DAY.toLocalDate(), "10:00"));
+    }
+
+    // same fallback as Progression's transformCourtCentre: no mapping -> the court centre's own OU code
+    @Test
+    void shouldFallBackToTheCourtCentreCodeWhenTheCourtroomHasNoOuCode() {
+        final UUID caseId = UUID.randomUUID();
+        final UUID roomId = UUID.randomUUID();
+        when(prosecutionCaseClient.findByCaseId(caseId))
+                .thenReturn(Optional.of(new ProsecutionCaseDetails(ENFORCEMENT_AUTHORITY_CODE, "12GD3456789")));
+        when(referenceDataClient.findCourtroomOuCode(roomId)).thenReturn(Optional.empty());
+
+        service.processConfirmedHearing(eventInRoom(roomId, caseId));
+
+        verify(libraClient).confirmHearing(new ConfirmedHearing("12GD3456789", "B01LY00", SITTING_DAY.toLocalDate(), "10:00"));
+    }
+
+    @Test
+    void shouldNotLookUpACourtroomWhenTheHearingHasNoRoom() {
+        final UUID caseId = UUID.randomUUID();
+        when(prosecutionCaseClient.findByCaseId(caseId))
+                .thenReturn(Optional.of(new ProsecutionCaseDetails(ENFORCEMENT_AUTHORITY_CODE, "12GD3456789")));
+
+        service.processConfirmedHearing(eventWithCases(caseId));
+
+        verifyNoInteractions(referenceDataClient);
+        verify(libraClient).confirmHearing(new ConfirmedHearing("12GD3456789", "B01LY", SITTING_DAY.toLocalDate(), "10:00"));
+    }
+
+    @Test
+    void shouldLookUpTheCourtroomOncePerEventForAGroupHearing() {
+        final UUID firstCaseId = UUID.randomUUID();
+        final UUID secondCaseId = UUID.randomUUID();
+        final UUID roomId = UUID.randomUUID();
+        when(prosecutionCaseClient.findByCaseId(firstCaseId))
+                .thenReturn(Optional.of(new ProsecutionCaseDetails(ENFORCEMENT_AUTHORITY_CODE, "12GD0000001")));
+        when(prosecutionCaseClient.findByCaseId(secondCaseId))
+                .thenReturn(Optional.of(new ProsecutionCaseDetails(ENFORCEMENT_AUTHORITY_CODE, "12GD0000002")));
+        when(referenceDataClient.findCourtroomOuCode(roomId)).thenReturn(Optional.of("B01LY02"));
+
+        service.processConfirmedHearing(eventInRoom(roomId, firstCaseId, secondCaseId));
+
+        verify(referenceDataClient, times(1)).findCourtroomOuCode(roomId);
+        verify(libraClient).confirmHearing(new ConfirmedHearing("12GD0000001", "B01LY02", SITTING_DAY.toLocalDate(), "10:00"));
+        verify(libraClient).confirmHearing(new ConfirmedHearing("12GD0000002", "B01LY02", SITTING_DAY.toLocalDate(), "10:00"));
+    }
+
+    // most hearings have no enforcement case: they must not cost a Reference Data call
+    @Test
+    void shouldNotLookUpACourtroomWhenNoCaseIsAnEnforcementCase() {
+        final UUID caseId = UUID.randomUUID();
+        when(prosecutionCaseClient.findByCaseId(caseId)).thenReturn(Optional.of(new ProsecutionCaseDetails("CPS-EM", "99AB1234567")));
+
+        service.processConfirmedHearing(eventInRoom(UUID.randomUUID(), caseId));
+
+        verifyNoInteractions(referenceDataClient, libraClient);
+    }
+
+    private static ConfirmedHearingEvent eventInRoom(final UUID roomId, final UUID... caseIds) {
+        return new ConfirmedHearingEvent(
+                new ConfirmedHearingEvent.CourtCentre("B01LY00", roomId),
+                List.of(new ConfirmedHearingEvent.HearingDay(SITTING_DAY)),
+                List.of(caseIds).stream().map(ConfirmedHearingEvent.ConfirmedProsecutionCase::new).toList());
     }
 }

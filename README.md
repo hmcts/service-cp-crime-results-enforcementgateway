@@ -31,7 +31,7 @@ The domain implementation is built: `HearingAllocationEventListener` consumes
 `LibraClient` POSTs the mapped `confirmedHearing` payload to Libra via Azure APIM
 (`cp.libra.apim-base-url`/`cp.libra.apim-subscription-key`, see `application.yaml`). Several
 environment-specific values (Libra/APIM base URL and subscription key for prod, Progression's
-query-api base URL, `CJSCPPUID`, and which deploy repo this service onboards into) are still
+query-api base URL, the `PROGRESSION_CJSCPPUID`/`REFERENCEDATA_CJSCPPUID` system users, and which deploy repo this service onboards into) are still
 outstanding - see open item 9 in the workflow repo's `specs/001-cimd-4246-hearing-resulted-to-libra/research.md`.
 
 Both JMS listeners (and so the whole confirmedHearing flow) run only under the `docker` Spring profile: a

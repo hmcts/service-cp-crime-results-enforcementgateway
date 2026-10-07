@@ -44,6 +44,7 @@ class HearingConfirmedScenarioIntegrationTest extends GatewayIntegrationTestBase
     void scenario(final Path folder, final CapturedOutput output) {
         final Scenario scenario = Scenarios.read(folder.resolve("scenario.json"), Scenario.class);
         scenario.progression().forEach(HearingConfirmedScenarioIntegrationTest::stubProgression);
+        scenario.referenceData().forEach(HearingConfirmedScenarioIntegrationTest::stubCourtroomOuCode);
         STUBS.stubFor(post(urlEqualTo(CONFIRMED_HEARING_PATH)).atPriority(5)
                 .willReturn(withOptionalBody(aResponse().withStatus(scenario.apim().status()).withFixedDelay(scenario.apim().delayMs()),
                         scenario.apim().body())));
@@ -75,6 +76,15 @@ class HearingConfirmedScenarioIntegrationTest extends GatewayIntegrationTestBase
         }
     }
 
+    /** {@code {"status": N}} answers with that status; anything else is the 200 body, e.g. {@code {"ouCourtRoomCodes": [...]}}. */
+    private static void stubCourtroomOuCode(final String roomId, final JsonNode answer) {
+        final String mediaType = "application/vnd.referencedata.query.get.police-opt-courtroom-ou-courtroom-code+json";
+        STUBS.stubFor(get(urlEqualTo(REFERENCEDATA_PATH + "/police-opt-courtroom-mappings?courtRoomUuid=" + roomId)).atPriority(1)
+                .withHeader("Accept", equalTo(mediaType))
+                .willReturn(answer.has("status") ? aResponse().withStatus(answer.path("status").asInt())
+                        : aResponse().withStatus(200).withHeader("Content-Type", mediaType).withBody(answer.toString())));
+    }
+
     private static ResponseDefinitionBuilder withOptionalBody(final ResponseDefinitionBuilder response, final String body) {
         return body == null ? response : response.withHeader("Content-Type", "application/json").withBody(body);
     }
@@ -85,13 +95,15 @@ class HearingConfirmedScenarioIntegrationTest extends GatewayIntegrationTestBase
      * @param cppName     the {@code CPPNAME}; defaults to {@code public.listing.hearing-confirmed}
      * @param event       the message body, as Listing publishes it
      * @param progression case id → {@code {"ouCode", "caseUrn"}} or {@code {"status": N, "body"?}}; unlisted ids answer 404
+     * @param referenceData courtroom id → the {@code ouCourtRoomCodes} response or {@code {"status": N}}; unlisted ids answer 404
      * @param apim        APIM's reply to every callback ({@code status}, optional {@code delayMs} and {@code body}); default 200
      */
     private record Scenario(String description, String cppName, JsonNode event, Map<String, JsonNode> progression,
-                            ApimReply apim, Expected expected) {
+                            Map<String, JsonNode> referenceData, ApimReply apim, Expected expected) {
         Scenario {
             cppName = cppName == null ? HEARING_CONFIRMED : cppName;
             progression = progression == null ? Map.of() : progression;
+            referenceData = referenceData == null ? Map.of() : referenceData;
             apim = apim == null ? new ApimReply(200, 0, null) : apim;
         }
     }
