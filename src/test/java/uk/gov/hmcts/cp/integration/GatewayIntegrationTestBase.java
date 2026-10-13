@@ -86,8 +86,8 @@ public abstract class GatewayIntegrationTestBase {
     static void stubProperties(final DynamicPropertyRegistry registry) {
         registry.add("cp.libra.apim-base-url", STUBS::baseUrl);
         registry.add("cp.libra.apim-subscription-key", () -> SUBSCRIPTION_KEY);
-        registry.add("cp.progression.query-api.base-url", () -> STUBS.baseUrl() + PROGRESSION_PATH);
-        registry.add("cp.referencedata.query-api.base-url", () -> STUBS.baseUrl() + REFERENCEDATA_PATH);
+        registry.add("cp.progression.query-api.base-url", STUBS::baseUrl);
+        registry.add("cp.referencedata.query-api.base-url", STUBS::baseUrl);
     }
 
     @AfterEach
