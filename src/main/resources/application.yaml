@@ -91,7 +91,7 @@ cp:
       # Resolves the allocated courtroom's OU code (e.g. B01LY01) for confirmedHearing's
       # courtHearingLocation - the same police-opt-courtroom-mappings lookup Progression's
       # transformCourtCentre does on this event. In an environment this is the stack's internal
-      # ingress, like PROGRESSION_URL, e.g. http://steccm09-internal.ingress01.ste.nl.cjscp.org.uk (host only;
+      # ingress host, like PROGRESSION_URL (host only, set per environment in the deployment config;
       # ReferenceDataClient appends /referencedata-query-api/query/api/rest/referencedata/...)
       base-url: ${REFERENCEDATA_URL:http://localhost:8080}
       # Reference Data's own system user - deliberately not shared with Progression's (it may differ)
