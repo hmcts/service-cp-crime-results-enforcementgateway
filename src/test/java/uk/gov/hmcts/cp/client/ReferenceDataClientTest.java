@@ -33,7 +33,7 @@ class ReferenceDataClientTest {
         final UUID roomId = UUID.fromString("9e4932f7-97b2-3010-b942-ddd2624e4dd8");
         final RestClient.Builder builder = RestClient.builder();
         final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(BASE_URL + "/police-opt-courtroom-mappings?courtRoomUuid=" + roomId))
+        server.expect(requestTo(BASE_URL + ReferenceDataClient.COURTROOM_MAPPINGS_PATH + "?courtRoomUuid=" + roomId))
                 .andExpect(method(GET))
                 .andExpect(header("Accept", MEDIA_TYPE))
                 .andExpect(header("CJSCPPUID", CJSCPPUID))
@@ -48,7 +48,7 @@ class ReferenceDataClientTest {
     void shouldReturnTheFirstCodeWhenTheCourtroomMapsToSeveral() {
         final RestClient.Builder builder = RestClient.builder();
         final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/police-opt-courtroom-mappings")))
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + ReferenceDataClient.COURTROOM_MAPPINGS_PATH + "")))
                 .andRespond(withSuccess("{\"ouCourtRoomCodes\":[\"B54MW02\",\"B53DJ03\"]}", MediaType.APPLICATION_JSON));
 
         assertThat(client(builder).findCourtroomOuCode(UUID.randomUUID())).contains("B54MW02");
@@ -58,7 +58,7 @@ class ReferenceDataClientTest {
     void shouldReturnEmptyWhenTheCourtroomHasNoCode() {
         final RestClient.Builder builder = RestClient.builder();
         final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/police-opt-courtroom-mappings")))
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + ReferenceDataClient.COURTROOM_MAPPINGS_PATH + "")))
                 .andRespond(withSuccess("{\"ouCourtRoomCodes\":[]}", MediaType.APPLICATION_JSON));
 
         assertThat(client(builder).findCourtroomOuCode(UUID.randomUUID())).isEmpty();
@@ -68,7 +68,7 @@ class ReferenceDataClientTest {
     void shouldReturnEmptyWhenTheResponseHasNoCodes() {
         final RestClient.Builder builder = RestClient.builder();
         final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/police-opt-courtroom-mappings")))
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + ReferenceDataClient.COURTROOM_MAPPINGS_PATH + "")))
                 .andRespond(withSuccess("{}", MediaType.APPLICATION_JSON));
 
         assertThat(client(builder).findCourtroomOuCode(UUID.randomUUID())).isEmpty();
@@ -78,7 +78,7 @@ class ReferenceDataClientTest {
     void shouldReturnEmptyWhenTheCourtroomIsUnknown() {
         final RestClient.Builder builder = RestClient.builder();
         final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/police-opt-courtroom-mappings")))
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + ReferenceDataClient.COURTROOM_MAPPINGS_PATH + "")))
                 .andRespond(withStatus(NOT_FOUND));
 
         assertThat(client(builder).findCourtroomOuCode(UUID.randomUUID())).isEmpty();
@@ -89,7 +89,7 @@ class ReferenceDataClientTest {
         final UUID roomId = UUID.randomUUID();
         final RestClient.Builder builder = RestClient.builder();
         final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/police-opt-courtroom-mappings")))
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + ReferenceDataClient.COURTROOM_MAPPINGS_PATH + "")))
                 .andRespond(withStatus(INTERNAL_SERVER_ERROR).body("defendant Edward Harrison"));
 
         assertThat(client(builder).findCourtroomOuCode(roomId)).isEmpty();
@@ -100,13 +100,13 @@ class ReferenceDataClientTest {
     void failedLookupWithoutHttpResponseShouldLogTheRootCause(final CapturedOutput output) {
         final RestClient.Builder builder = RestClient.builder();
         final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + "/police-opt-courtroom-mappings")))
+        server.expect(requestTo(org.hamcrest.Matchers.startsWith(BASE_URL + ReferenceDataClient.COURTROOM_MAPPINGS_PATH + "")))
                 .andRespond(request -> {
                     throw new java.net.ConnectException("Connection refused");
                 });
 
         assertThat(client(builder).findCourtroomOuCode(UUID.randomUUID())).isEmpty();
-        assertThat(output.getAll()).contains("url=" + BASE_URL + "/police-opt-courtroom-mappings")
+        assertThat(output.getAll()).contains("url=" + BASE_URL + ReferenceDataClient.COURTROOM_MAPPINGS_PATH + "")
                 .contains("ResourceAccessException").contains("rootCause=java.net.ConnectException");
     }
 

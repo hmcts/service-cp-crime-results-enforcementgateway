@@ -31,7 +31,7 @@ class ProsecutionCaseClientTest {
         final UUID caseId = UUID.randomUUID();
         final RestClient.Builder builder = RestClient.builder();
         final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(BASE_URL + "/prosecutioncases/" + caseId))
+        server.expect(requestTo(BASE_URL + ProsecutionCaseClient.PROSECUTION_CASES_PATH + "/" + caseId))
                 .andExpect(method(GET))
                 .andExpect(header("CJSCPPUID", CJSCPPUID))
                 .andRespond(withSuccess(
@@ -52,7 +52,7 @@ class ProsecutionCaseClientTest {
         final UUID caseId = UUID.randomUUID();
         final RestClient.Builder builder = RestClient.builder();
         final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
-        server.expect(requestTo(BASE_URL + "/prosecutioncases/" + caseId)).andRespond(withStatus(NOT_FOUND));
+        server.expect(requestTo(BASE_URL + ProsecutionCaseClient.PROSECUTION_CASES_PATH + "/" + caseId)).andRespond(withStatus(NOT_FOUND));
 
         final Optional<ProsecutionCaseDetails> result = new ProsecutionCaseClient(builder, BASE_URL, CJSCPPUID).findByCaseId(caseId);
 
@@ -65,7 +65,7 @@ class ProsecutionCaseClientTest {
         final RestClient.Builder builder = RestClient.builder();
         final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         final UUID caseId = UUID.randomUUID();
-        server.expect(requestTo(BASE_URL + "/prosecutioncases/" + caseId))
+        server.expect(requestTo(BASE_URL + ProsecutionCaseClient.PROSECUTION_CASES_PATH + "/" + caseId))
                 .andRespond(withStatus(org.springframework.http.HttpStatus.INTERNAL_SERVER_ERROR).body("defendant Edward Harrison"));
 
         assertThat(new ProsecutionCaseClient(builder, BASE_URL, CJSCPPUID).findByCaseId(caseId)).isEmpty();
@@ -78,14 +78,14 @@ class ProsecutionCaseClientTest {
         final RestClient.Builder builder = RestClient.builder();
         final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         final UUID caseId = UUID.randomUUID();
-        server.expect(requestTo(BASE_URL + "/prosecutioncases/" + caseId))
+        server.expect(requestTo(BASE_URL + ProsecutionCaseClient.PROSECUTION_CASES_PATH + "/" + caseId))
                 .andRespond(request -> {
                     throw new java.net.ConnectException("Connection refused");
                 });
 
         assertThat(new ProsecutionCaseClient(builder, BASE_URL, CJSCPPUID).findByCaseId(caseId)).isEmpty();
         assertThat(output.getAll())
-                .contains("url=" + BASE_URL + "/prosecutioncases/" + caseId)
+                .contains("url=" + BASE_URL + ProsecutionCaseClient.PROSECUTION_CASES_PATH + "/" + caseId)
                 .contains("ResourceAccessException")
                 .contains("rootCause=java.net.ConnectException: Connection refused")
                 .contains("at uk.gov.hmcts.cp.client.ProsecutionCaseClient.findByCaseId");
