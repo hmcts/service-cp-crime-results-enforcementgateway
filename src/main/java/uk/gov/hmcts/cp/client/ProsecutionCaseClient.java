@@ -27,6 +27,8 @@ public class ProsecutionCaseClient {
     private static final MediaType PROGRESSION_QUERY_CASE_MEDIA_TYPE =
             MediaType.parseMediaType("application/vnd.progression.query.case+json");
     private static final String CJSCPPUID_HEADER = "CJSCPPUID";
+    // the configured base url is the Progression context's host only (PROGRESSION_URL); the query-api path is ours
+    /* default */ static final String PROSECUTION_CASES_PATH = "/progression-query-api/query/api/rest/progression/prosecutioncases";
 
     private final RestClient restClient;
     private final String cjscppuid;
@@ -48,7 +50,7 @@ public class ProsecutionCaseClient {
         Optional<ProsecutionCaseDetails> result = Optional.empty();
         try {
             final ProsecutionCaseResponse response = restClient.get()
-                    .uri("/prosecutioncases/{caseId}", caseId)
+                    .uri(PROSECUTION_CASES_PATH + "/{caseId}", caseId)
                     .accept(PROGRESSION_QUERY_CASE_MEDIA_TYPE)
                     .header(CJSCPPUID_HEADER, cjscppuid)
                     .retrieve()
@@ -62,7 +64,7 @@ public class ProsecutionCaseClient {
             // which is why the exception itself isn't passed to the logger here
             // TEMP DIAGNOSTICS: url, status text, content type and a body-free stack trace added to help
             // diagnose Progression lookup failures
-            log.error("Failed to look up prosecution case {} from Progression: HTTP {} {} (url={}/prosecutioncases/{}, contentType={})",
+            log.error("Failed to look up prosecution case {} from Progression: HTTP {} {} (url={}" + PROSECUTION_CASES_PATH + "/{}, contentType={})",
                     caseId, e.getStatusCode().value(), e.getStatusText(), baseUrl, caseId,
                     e.getResponseHeaders() == null ? null : e.getResponseHeaders().getContentType(),
                     withoutResponseBody(e));
@@ -71,7 +73,7 @@ public class ProsecutionCaseClient {
             // DNS/TLS failure, unexpected content type, JSON mapping error...) - log the url, message and root
             // cause plus the stack trace so the actual failure is visible
             final Throwable rootCause = NestedExceptionUtils.getMostSpecificCause(e);
-            log.error("Failed to look up prosecution case {} from Progression: {} - {} (url={}/prosecutioncases/{}, rootCause={}: {})",
+            log.error("Failed to look up prosecution case {} from Progression: {} - {} (url={}" + PROSECUTION_CASES_PATH + "/{}, rootCause={}: {})",
                     caseId, e.getClass().getSimpleName(), e.getMessage(), baseUrl, caseId,
                     rootCause.getClass().getName(), rootCause.getMessage(), e);
         }

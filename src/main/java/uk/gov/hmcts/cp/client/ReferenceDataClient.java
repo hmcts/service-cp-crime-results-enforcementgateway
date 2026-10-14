@@ -30,6 +30,8 @@ public class ReferenceDataClient {
     private static final MediaType COURTROOM_OU_CODE_MEDIA_TYPE =
             MediaType.parseMediaType("application/vnd.referencedata.query.get.police-opt-courtroom-ou-courtroom-code+json");
     private static final String CJSCPPUID_HEADER = "CJSCPPUID";
+    // the configured base url is the Reference Data context's host only (REFERENCEDATA_URL); the query-api path is ours
+    /* default */ static final String COURTROOM_MAPPINGS_PATH = "/referencedata-query-api/query/api/rest/referencedata/police-opt-courtroom-mappings";
 
     private final RestClient restClient;
     private final String cjscppuid;
@@ -51,7 +53,7 @@ public class ReferenceDataClient {
         Optional<String> result = Optional.empty();
         try {
             final CourtroomOuCodes response = restClient.get()
-                    .uri("/police-opt-courtroom-mappings?courtRoomUuid={courtRoomId}", courtRoomId)
+                    .uri(COURTROOM_MAPPINGS_PATH + "?courtRoomUuid={courtRoomId}", courtRoomId)
                     .accept(COURTROOM_OU_CODE_MEDIA_TYPE)
                     .header(CJSCPPUID_HEADER, cjscppuid)
                     .retrieve()
@@ -61,11 +63,11 @@ public class ReferenceDataClient {
                     .flatMap(codes -> codes.stream().filter(code -> code != null && !code.isBlank()).findFirst());
         } catch (final RestClientResponseException e) {
             // status only, as for the Progression lookup: never the error body
-            log.error("Failed to look up courtroom {} OU code from Reference Data: HTTP {} (url={}/police-opt-courtroom-mappings)",
+            log.error("Failed to look up courtroom {} OU code from Reference Data: HTTP {} (url={}" + COURTROOM_MAPPINGS_PATH + ")",
                     courtRoomId, e.getStatusCode().value(), baseUrl);
         } catch (final RestClientException e) {
             final Throwable rootCause = NestedExceptionUtils.getMostSpecificCause(e);
-            log.error("Failed to look up courtroom {} OU code from Reference Data: {} (url={}/police-opt-courtroom-mappings, rootCause={})",
+            log.error("Failed to look up courtroom {} OU code from Reference Data: {} (url={}" + COURTROOM_MAPPINGS_PATH + ", rootCause={})",
                     courtRoomId, e.getClass().getSimpleName(), baseUrl, rootCause.getClass().getName());
         }
         return result;
