@@ -23,6 +23,9 @@ jobs:
       - uses: pmd/pmd-github-action@v2
         id: pmd
         with:
+          # Pinned, as in service-cp-crime-results-enforcementworkflow: "latest" (7.29.0) added the
+          # LocalVariableDeclarationShouldBeAtStartOfBlock code-style rule and failed the build on unchanged code.
+          version: '7.24.0'
           rulesets: '.github/pmd-ruleset.xml'
           sourcePath: 'src/main/java'
           analyzeModifiedFilesOnly: false
