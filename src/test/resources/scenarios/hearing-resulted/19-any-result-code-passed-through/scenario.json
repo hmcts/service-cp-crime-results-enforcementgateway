@@ -1,0 +1,16 @@
+{
+  "description": "A result code GOB does not list (contract 0.2.0, CIMD-4530): sent to APIM unchanged and Libra's reply returned (200)",
+  "request": {
+    "set": {
+      "/results/0/resultCode": "ZZZZZZZZZZ"
+    }
+  },
+  "apim": {
+    "status": 200,
+    "bodyResource": "hearingresulted/response.json"
+  },
+  "expected": {
+    "status": 200,
+    "apimCalls": 1
+  }
+}

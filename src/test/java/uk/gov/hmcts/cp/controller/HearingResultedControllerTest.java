@@ -49,9 +49,20 @@ class HearingResultedControllerTest {
         verifyNoInteractions(libraClient);
     }
 
+    // contract 0.2.0 (CIMD-4530): any CP result code of up to 10 characters is passed on to Libra
     @Test
-    void unknownResultCodeShouldReturn400() throws Exception {
-        final String body = HearingResultedFixtures.requestJson().replace("\"resultCode\": \"SC\"", "\"resultCode\": \"XYZ\"");
+    void anyResultCodeOfUpTo10CharactersShouldBeSentToLibra() throws Exception {
+        when(libraClient.resultHearing(any())).thenReturn(
+                LibraClient.JSON.readValue(HearingResultedFixtures.responseJson(), HearingResultedResponse.class));
+        final String body = HearingResultedFixtures.requestJson().replace("\"resultCode\": \"SC\"", "\"resultCode\": \"XYZ1234567\"");
+
+        mockMvc.perform(post("/hearingResulted").contentType(MediaType.APPLICATION_JSON).content(body))
+                .andExpect(status().isOk());
+    }
+
+    @Test
+    void resultCodeLongerThan10CharactersShouldReturn400() throws Exception {
+        final String body = HearingResultedFixtures.requestJson().replace("\"resultCode\": \"SC\"", "\"resultCode\": \"XYZ12345678\"");
 
         mockMvc.perform(post("/hearingResulted").contentType(MediaType.APPLICATION_JSON).content(body))
                 .andExpect(status().isBadRequest())
