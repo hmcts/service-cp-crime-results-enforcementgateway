@@ -1,0 +1,13 @@
+{
+  "description": "A resultCode longer than 10 characters: 400 INVALID_PAYLOAD, APIM never called (contract 0.2.0 takes any CP result code up to 10 characters)",
+  "request": {
+    "set": {
+      "/results/0/resultCode": "ZZZZZZZZZZZ"
+    }
+  },
+  "expected": {
+    "status": 400,
+    "apimCalls": 0,
+    "error": "INVALID_PAYLOAD"
+  }
+}
