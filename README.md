@@ -34,8 +34,16 @@ environment-specific values (Libra/APIM base URL and subscription key for prod, 
 query-api base URL, the `PROGRESSION_CJSCPPUID`/`REFERENCEDATA_CJSCPPUID` system users, and which deploy repo this service onboards into) are still
 outstanding - see open item 9 in the workflow repo's `specs/001-cimd-4246-hearing-resulted-to-libra/research.md`.
 
-Both JMS listeners (and so the whole confirmedHearing flow) run only under the `docker` Spring profile: a
+The JMS listener (and so the whole confirmedHearing flow) runs only under the `docker` Spring profile: a
 deployment must set `SPRING_PROFILES_ACTIVE=docker`, or the service starts without consuming any events.
+The listener is also **off by default**: it starts only when `ARTEMIS_LISTENER_ENABLED=true` is set. Unset (or
+`false`), the service is **passive**: it runs, but the listener never starts, creates no subscription on `public.event`,
+consumes no events and calls nothing (`PassiveDeploymentIntegrationTest`). So an environment that should process
+events (STE, SIT) sets `ARTEMIS_LISTENER_ENABLED: "true"` in its own cpp-aks-deploy values file, never in the shared
+one; production sets `"false"` explicitly. Running locally with the `docker` profile also needs
+`ARTEMIS_LISTENER_ENABLED=true` to consume events. When the listener runs, the service refuses to start unless
+`PROGRESSION_CJSCPPUID` and `REFERENCEDATA_CJSCPPUID` are real System Users ids (set, a UUID, not all zeros). At startup it logs one line beginning `Effective configuration.`
+with `hearingAllocationListener=on|off` and the hosts it uses (`StartupPropertiesValidator`).
 
 ## Hearing result to Libra — `POST /hearingResulted` (CIMD-4246)
 

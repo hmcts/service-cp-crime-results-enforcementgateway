@@ -70,11 +70,12 @@ class ProsecutionCaseClientTest {
 
         assertThat(new ProsecutionCaseClient(builder, BASE_URL, CJSCPPUID).findByCaseId(caseId)).isEmpty();
         assertThat(output.getAll()).contains(caseId.toString()).contains("HTTP 500").doesNotContain("Edward")
-                .contains("at uk.gov.hmcts.cp.client.ProsecutionCaseClient.findByCaseId");
+                .doesNotContain("at uk.gov.hmcts.cp.client.ProsecutionCaseClient.findByCaseId");
     }
 
+    // a transport failure logs the case id and the exception class only: no message, root cause or stack trace
     @Test
-    void failedLookupWithoutHttpResponseShouldLogUrlAndRootCause(final CapturedOutput output) {
+    void failedLookupWithoutHttpResponseShouldLogTheExceptionClassOnly(final CapturedOutput output) {
         final RestClient.Builder builder = RestClient.builder();
         final MockRestServiceServer server = MockRestServiceServer.bindTo(builder).build();
         final UUID caseId = UUID.randomUUID();
@@ -85,9 +86,8 @@ class ProsecutionCaseClientTest {
 
         assertThat(new ProsecutionCaseClient(builder, BASE_URL, CJSCPPUID).findByCaseId(caseId)).isEmpty();
         assertThat(output.getAll())
-                .contains("url=" + BASE_URL + ProsecutionCaseClient.PROSECUTION_CASES_PATH + "/" + caseId)
-                .contains("ResourceAccessException")
-                .contains("rootCause=java.net.ConnectException: Connection refused")
-                .contains("at uk.gov.hmcts.cp.client.ProsecutionCaseClient.findByCaseId");
+                .contains("Failed to look up prosecution case " + caseId + " from Progression: ResourceAccessException")
+                .doesNotContain("Connection refused")
+                .doesNotContain("at uk.gov.hmcts.cp.client.ProsecutionCaseClient.findByCaseId");
     }
 }

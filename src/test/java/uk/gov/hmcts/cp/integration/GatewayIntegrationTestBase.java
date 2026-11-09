@@ -67,6 +67,8 @@ public abstract class GatewayIntegrationTestBase {
     protected static final String ENFORCEMENT_OU_CODE = "GAPGD00";
     protected static final Duration PROCESSING_TIMEOUT = Duration.ofSeconds(15);
     private static final String MARKER_URN_PREFIX = "MARKER-";
+    private static final UUID PROGRESSION_USER = UUID.randomUUID();
+    private static final UUID REFDATA_USER = UUID.randomUUID();
 
     static {
         STUBS.start();
@@ -88,6 +90,9 @@ public abstract class GatewayIntegrationTestBase {
         registry.add("cp.libra.apim-subscription-key", () -> SUBSCRIPTION_KEY);
         registry.add("cp.progression.query-api.base-url", STUBS::baseUrl);
         registry.add("cp.referencedata.query-api.base-url", STUBS::baseUrl);
+        // the docker profile requires system user ids (StartupPropertiesValidator); generated per run, none in source
+        registry.add("cp.progression.query-api.cjscppuid", PROGRESSION_USER::toString);
+        registry.add("cp.referencedata.query-api.cjscppuid", REFDATA_USER::toString);
     }
 
     @AfterEach

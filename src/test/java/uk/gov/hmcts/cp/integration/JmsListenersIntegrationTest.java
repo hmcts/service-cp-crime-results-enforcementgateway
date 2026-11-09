@@ -41,8 +41,8 @@ class JmsListenersIntegrationTest extends GatewayIntegrationTestBase {
     void everyListenerShouldBeConnectedToTheBroker() {
         final Collection<MessageListenerContainer> containers = listenerRegistry.getListenerContainers();
 
-        // the connectivity logger and the hearing-allocation listener: both durable, so each needs its own client id
-        assertThat(containers).hasSize(2);
+        // the hearing-allocation listener only (the connectivity logger was removed before release)
+        assertThat(containers).hasSize(1);
         await().atMost(PROCESSING_TIMEOUT).untilAsserted(() -> assertThat(containers).allSatisfy(container ->
                 assertThat(((DefaultMessageListenerContainer) container).isRegisteredWithDestination()).isTrue()));
     }
