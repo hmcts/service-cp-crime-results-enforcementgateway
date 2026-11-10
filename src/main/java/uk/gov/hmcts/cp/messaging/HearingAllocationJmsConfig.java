@@ -12,11 +12,11 @@ import org.springframework.jms.config.DefaultJmsListenerContainerFactory;
 /**
  * Listener container factory for {@link HearingAllocationEventListener}, with its own JMS client id.
  * Each listener container opens its own connection, and a broker accepts one connection per client
- * id. With both durable listeners on {@code spring.jms.client-id}, the second to start (this one or
- * {@link PublicEventLoggingListener}) failed with "clientID ... was already set into another
- * connection" and retried forever, so the confirmedHearing flow received no events (reproduced by
- * {@code JmsListenersIntegrationTest}; workflow research.md open item 11, same fix as the workflow's
- * R23). The durable subscription is identified by this client id plus
+ * id. When a second durable listener (the connectivity logger, since removed) shared {@code spring.jms.client-id},
+ * the second to start failed with "clientID ... was already set into another connection" and retried
+ * forever, so the confirmedHearing flow received no events (workflow research.md open item 11, same fix
+ * as the workflow's R23). The client id is kept as it is: with the subscription name it identifies the
+ * durable subscription already on the brokers. The durable subscription is identified by this client id plus
  * {@code cp.messaging.hearing-allocation-subscription-name}. It uses the plain, not the caching,
  * connection factory, as Spring Boot does for its own listener factory.
  */

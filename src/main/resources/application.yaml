@@ -15,7 +15,9 @@ spring:
     subscription-durable: true           # durable: events queued while down are still delivered
     client-id: service-cp-crime-results-enforcementgateway
     listener:
-      auto-startup: ${ARTEMIS_LISTENER_ENABLED:true}   # enabled by default (listener only loads under the 'docker' profile)
+      # Off unless an environment turns it on: ARTEMIS_LISTENER_ENABLED=true (and the 'docker' profile, which loads the
+      # listener). Unset means passive: no subscription on public.event, no event consumed, nothing called.
+      auto-startup: ${ARTEMIS_LISTENER_ENABLED:false}
 
 server:
   port: ${SERVER_PORT:8082}
@@ -53,16 +55,13 @@ logging:
   level:
     root: INFO
 
-# CP public-event consumption (connectivity logging; active only under the 'docker' profile).
-# Selector filters to the listing hearing events the enforcement gateway cares about.
+# CP public-event consumption (active only under the 'docker' profile): one durable, selector-filtered
+# subscription for the Libra confirmedHearing flow (hearing-listed deliberately excluded - not related to it).
 cp:
   messaging:
     public-event-topic: public.event
-    subscription-name: service-cp-crime-results-enforcementgateway.public.event.logger
-    selector: "CPPNAME IN ('public.listing.hearing-listed','public.listing.hearing-confirmed','public.listing.hearing-updated')"
-    # Separate durable subscription for the real business logic (hearing-listed deliberately
-    # excluded - not related to the Libra confirmedHearing flow).
-    # own JMS client id: a second durable listener sharing spring.jms.client-id fails to connect (HearingAllocationJmsConfig)
+    # own JMS client id; with the subscription name it identifies the durable subscription on the broker, so don't change
+    # either (HearingAllocationJmsConfig)
     hearing-allocation-client-id: service-cp-crime-results-enforcementgateway.hearing-allocation
     hearing-allocation-subscription-name: service-cp-crime-results-enforcementgateway.hearing-allocation
     hearing-allocation-selector: "CPPNAME IN ('public.listing.hearing-confirmed','public.listing.hearing-updated')"

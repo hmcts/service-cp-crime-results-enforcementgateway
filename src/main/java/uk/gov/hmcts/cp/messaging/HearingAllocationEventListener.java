@@ -12,13 +12,11 @@ import uk.gov.hmcts.cp.event.ConfirmedHearingEvent;
 import uk.gov.hmcts.cp.service.EnforcementHearingConfirmationService;
 
 /**
- * Consumes {@code public.listing.hearing-confirmed}/{@code hearing-updated} (own subscription,
- * separate from {@link PublicEventLoggingListener}'s connectivity-only one) and triggers the
- * Libra confirmedHearing callback for any Enforcement-typed case on the event. {@code
- * public.listing.hearing-listed} is deliberately not subscribed to here - not related to this
- * flow. Active only under the {@code docker} profile, same as the connectivity listener, so it
- * never tries to reach a real broker outside a deployed environment (including in
- * {@code @SpringBootTest}s).
+ * Consumes {@code public.listing.hearing-confirmed}/{@code hearing-updated} (durable, selector-filtered
+ * subscription) and triggers the Libra confirmedHearing callback for any Enforcement-typed case on the
+ * event. {@code public.listing.hearing-listed} is deliberately not subscribed to here - not related to
+ * this flow. Active only under the {@code docker} profile, so it never tries to reach a real broker
+ * outside a deployed environment (including in {@code @SpringBootTest}s).
  */
 @Slf4j
 @Component
