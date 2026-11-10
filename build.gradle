@@ -1,12 +1,12 @@
 plugins {
   id 'application'
   id 'java'
-  id 'org.springframework.boot' version '4.1.0'
+  id 'org.springframework.boot' version '4.1.2'
   id 'io.spring.dependency-management' version '1.1.7'
   id 'jacoco'
   id 'maven-publish'
-  id 'com.github.ben-manes.versions' version '0.60.0'
-  id 'org.cyclonedx.bom' version '3.3.0'
+  id 'com.github.ben-manes.versions' version '0.67.0'
+  id 'org.cyclonedx.bom' version '3.5.1'
   id 'com.gorylenko.gradle-git-properties' version '4.0.1'
 }
 
@@ -42,10 +42,10 @@ dependencies {
   // Java core
   implementation 'net.logstash.logback:logstash-logback-encoder:9.0'
 
-  compileOnly 'org.projectlombok:lombok:1.18.46'
-  annotationProcessor 'org.projectlombok:lombok:1.18.46'
-  testCompileOnly 'org.projectlombok:lombok:1.18.46'
-  testAnnotationProcessor 'org.projectlombok:lombok:1.18.46'
+  compileOnly 'org.projectlombok:lombok:1.18.48'
+  annotationProcessor 'org.projectlombok:lombok:1.18.48'
+  testCompileOnly 'org.projectlombok:lombok:1.18.48'
+  testAnnotationProcessor 'org.projectlombok:lombok:1.18.48'
 
   // Spring boot core
   implementation 'org.springframework.boot:spring-boot-starter-web'
@@ -69,7 +69,7 @@ dependencies {
 
   // Security: pin transitive tomcat-embed-core to patched version (CVE-2026-41293, -43512, et al.)
   // Brought in transitively via spring-boot-starter-web; >=11.0.0-M1,<11.0.22 are vulnerable
-  implementation 'org.apache.tomcat.embed:tomcat-embed-core:11.0.24'
+  implementation 'org.apache.tomcat.embed:tomcat-embed-core:11.0.27'
 
   // --- Messaging: durable subscription to the CP 'public.event' Artemis topic (connectivity logging) ---
   implementation 'org.springframework.boot:spring-boot-starter-artemis'
