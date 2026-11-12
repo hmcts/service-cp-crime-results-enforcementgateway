@@ -151,6 +151,23 @@ class LibraClientResultHearingTest {
                 });
     }
 
+    // CIMD-4611 (contract v0.6.0): when no NOWS data is requested, Libra leaves nowsDataItems out of its reply
+    @Test
+    void acceptedWithoutNowsDataItemsShouldBeReturnedWhenNoneWereRequested() {
+        final ObjectNode request = (ObjectNode) LibraClient.JSON.readTree(HearingResultedFixtures.requestJson());
+        request.remove("nowsDataRequest");
+        final ObjectNode body = (ObjectNode) LibraClient.JSON.readTree(HearingResultedFixtures.responseJson());
+        body.remove("nowsDataItems");
+        server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withSuccess(body.toString(), MediaType.APPLICATION_JSON));
+
+        final HearingResultedResponse response = client().resultHearing(
+                LibraClient.JSON.treeToValue(request, uk.gov.hmcts.cp.openapi.model.HearingResultedRequest.class));
+
+        assertThat(response.getCaseUrn()).isEqualTo("E012345678");
+        assertThat(response.getNowsDataItems()).isNull();
+        server.verify();
+    }
+
     @Test
     void redirectShouldBeALibraFailure() {
         server.expect(requestTo(BASE_URL + "/hearingResulted")).andRespond(withStatus(org.springframework.http.HttpStatus.FOUND));

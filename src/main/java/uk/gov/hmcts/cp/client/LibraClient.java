@@ -114,7 +114,8 @@ public class LibraClient {
                     // bytes, decoded as UTF-8 below: a String body would be ISO-8859-1 without a JSON content type
                     .toEntity(byte[].class);
             final String responseBody = reply.getBody() == null ? null : new String(reply.getBody(), StandardCharsets.UTF_8);
-            final HearingResultedResponse response = parseAcceptedResponse(responseBody, reply.getStatusCode().value(), caseUrn);
+            final HearingResultedResponse response = parseAcceptedResponse(responseBody, reply.getStatusCode().value(), caseUrn,
+                    nowsDataRequested(request));
             log.info("Libra hearingResulted (via APIM) accepted for caseUrn {}", caseUrn);
             return response;
         } catch (final LibraCallException e) {
@@ -129,14 +130,22 @@ public class LibraClient {
         }
     }
 
+    /** True when the request asks Libra for NOWS data items (a {@code nowsDataRequest} naming at least one). */
+    private static boolean nowsDataRequested(final HearingResultedRequest request) {
+        return request.getNowsDataRequest() != null && request.getNowsDataRequest().getNowsDataItems() != null
+                && !request.getNowsDataRequest().getNowsDataItems().isEmpty();
+    }
+
     /**
      * Libra accepted (2xx) but the body is empty, not a HearingResultedResponse, or lacks one of its
-     * required fields. This is reported as a
+     * required fields. {@code nowsDataItems} is required only when NOWS data was requested: when nothing is
+     * requested, Libra leaves it out (contract v0.6.0; CIMD-4611). This is reported as a
      * failure with {@code libraStatus} = the 2xx and {@code errorCode} {@value LibraCallException#INVALID_RESPONSE},
      * so the caller can see that GOB accepted it. The parser message is not logged, because it can quote
      * response values.
      */
-    private static HearingResultedResponse parseAcceptedResponse(final String body, final int status, final String caseUrn) {
+    private static HearingResultedResponse parseAcceptedResponse(final String body, final int status, final String caseUrn,
+                                                                 final boolean nowsDataRequested) {
         if (body == null || body.isBlank()) {
             throw LibraCallException.invalidResponse(status, "empty response body");
         }
@@ -149,7 +158,8 @@ public class LibraClient {
             throw LibraCallException.invalidResponse(status, "response body is not a HearingResultedResponse");
         }
         // unknown fields are tolerated (see JSON), but the contract's required fields are not optional
-        if (response.getCaseUrn() == null || response.getTimestamp() == null || response.getNowsDataItems() == null) {
+        if (response.getCaseUrn() == null || response.getTimestamp() == null
+                || nowsDataRequested && response.getNowsDataItems() == null) {
             log.warn("Libra hearingResulted (via APIM) 2xx body for caseUrn {} lacks a required field (caseUrn, timestamp, nowsDataItems)",
                     caseUrn);
             throw LibraCallException.invalidResponse(status, "response body lacks a required HearingResultedResponse field");

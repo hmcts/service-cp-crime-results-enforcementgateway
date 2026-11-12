@@ -127,6 +127,26 @@ class HearingResultedGatewayIntegrationTest {
                 .andExpect(content().string(org.hamcrest.Matchers.not(org.hamcrest.Matchers.containsString("null"))));
     }
 
+    // CIMD-4611: a request with no nowsDataRequest (no result code needs NOWS data) and Libra's reply without
+    // nowsDataItems (contract v0.6.0) is a success, not INVALID_RESPONSE (it was reported to the workflow as a 502)
+    @Test
+    void replyWithoutNowsDataItemsShouldBeAcceptedWhenNoneWereRequested() throws Exception {
+        final tools.jackson.databind.node.ObjectNode request =
+                (tools.jackson.databind.node.ObjectNode) uk.gov.hmcts.cp.client.LibraClient.JSON.readTree(HearingResultedFixtures.requestJson());
+        request.remove("nowsDataRequest");
+        APIM.stubFor(post(urlEqualTo("/hearingResulted"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json")
+                        .withBody("{\"caseUrn\":\"E012345678\",\"timestamp\":\"2026-05-03T14:30:00Z\"}")));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/hearingResulted")
+                        .contentType(MediaType.APPLICATION_JSON).content(request.toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.caseUrn").value("E012345678"))
+                .andExpect(jsonPath("$.nowsDataItems").doesNotExist());
+        assertThat(APIM.findAll(postRequestedFor(urlEqualTo("/hearingResulted"))))
+                .singleElement().satisfies(sent -> assertThat(sent.getBodyAsString()).doesNotContain("nowsDataRequest"));
+    }
+
     private static void assertNoPiiLogged(final CapturedOutput output) {
         assertThat(output.getAll())
                 .contains("E012345678") // caseUrn is logged: the correlation key, not PII
