@@ -147,6 +147,51 @@ class HearingResultedGatewayIntegrationTest {
                 .singleElement().satisfies(sent -> assertThat(sent.getBodyAsString()).doesNotContain("nowsDataRequest"));
     }
 
+    // CIMD-4251 AC2: with no payment terms result the workflow omits paymentTerms (optional in the contract, as in Libra
+    // v0.6.0); the gateway forwards the request to APIM unchanged
+    @Test
+    void requestWithoutPaymentTermsShouldBeForwardedUnchanged(final CapturedOutput output) throws Exception {
+        final tools.jackson.databind.node.ObjectNode request =
+                (tools.jackson.databind.node.ObjectNode) uk.gov.hmcts.cp.client.LibraClient.JSON.readTree(HearingResultedFixtures.requestJson());
+        assertThat(request.has("paymentTerms")).as("fixture has paymentTerms to remove").isTrue();
+        request.remove("paymentTerms");
+        APIM.stubFor(post(urlEqualTo("/hearingResulted"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json")
+                        .withBody(HearingResultedFixtures.responseJson())));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/hearingResulted")
+                        .contentType(MediaType.APPLICATION_JSON).content(request.toString()))
+                .andExpect(status().isOk())
+                .andExpect(content().json(HearingResultedFixtures.responseJson()));
+
+        APIM.verify(postRequestedFor(urlEqualTo("/hearingResulted"))
+                .withRequestBody(equalToJson(request.toString(), true, false)));
+        assertThat(APIM.findAll(postRequestedFor(urlEqualTo("/hearingResulted"))))
+                .singleElement().satisfies(sent -> assertThat(sent.getBodyAsString()).doesNotContain("paymentTerms"));
+        assertNoPiiLogged(output);
+    }
+
+    // CIMD-4251 (Libra v0.8.0): a full payment terms block (instalmentFrequency, decimal amounts, lump sum) survives the
+    // gateway's model round trip unchanged
+    @Test
+    void requestWithFullPaymentTermsBlockShouldBeForwardedUnchanged() throws Exception {
+        final tools.jackson.databind.node.ObjectNode request =
+                (tools.jackson.databind.node.ObjectNode) uk.gov.hmcts.cp.client.LibraClient.JSON.readTree(HearingResultedFixtures.requestJson());
+        request.set("paymentTerms", uk.gov.hmcts.cp.client.LibraClient.JSON.readTree("""
+                {"instalmentFrequency":"F","paymentDueDate":"2031-04-11","instalmentAmount":31.29,"lumpSum":2500.37,
+                "paymentCardRequested":"Y","parentToPay":"N"}"""));
+        APIM.stubFor(post(urlEqualTo("/hearingResulted"))
+                .willReturn(aResponse().withStatus(200).withHeader("Content-Type", "application/json")
+                        .withBody(HearingResultedFixtures.responseJson())));
+
+        mockMvc.perform(org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post("/hearingResulted")
+                        .contentType(MediaType.APPLICATION_JSON).content(request.toString()))
+                .andExpect(status().isOk());
+
+        APIM.verify(postRequestedFor(urlEqualTo("/hearingResulted"))
+                .withRequestBody(equalToJson(request.toString(), true, false)));
+    }
+
     private static void assertNoPiiLogged(final CapturedOutput output) {
         assertThat(output.getAll())
                 .contains("E012345678") // caseUrn is logged: the correlation key, not PII
